@@ -125,9 +125,11 @@
    const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
    const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
    if(forward||strafe){
-     const v=new B.Vector3(strafe,0,forward);v.normalize();
-     const angle=camera.alpha+Math.PI/2;
-     const dx=v.x*Math.cos(angle)+v.z*Math.sin(angle), dz=-v.x*Math.sin(angle)+v.z*Math.cos(angle);
+     // Move in the camera's horizontal facing direction, not a fixed world direction.
+     const inputLength=Math.hypot(strafe,forward)||1;
+     const side=strafe/inputLength, ahead=forward/inputLength;
+     const dx=side*(-Math.sin(camera.alpha))+ahead*(-Math.cos(camera.alpha));
+     const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
      const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
      player.position.x+=dx*speed;player.position.z+=dz*speed;
      player.rotation.y=Math.atan2(dx,dz);walk+=dt*10;
