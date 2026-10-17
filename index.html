@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101820">
+<title>AROUND THE WORLD — New Horizon City</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#f5f7fa}#renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}.hud{position:fixed;z-index:2;pointer-events:none}.brand{top:16px;left:16px;max-width:calc(100vw - 32px);padding:12px 15px;border:1px solid #ffffff22;border-radius:15px;background:#101820bb;backdrop-filter:blur(12px)}.brand strong{display:block;letter-spacing:.12em;font-size:clamp(13px,2.5vw,18px)}.brand span{display:block;margin-top:4px;color:#b7c9d5;font-size:12px}.status{top:16px;right:16px;text-align:right;padding:10px 12px;border:1px solid #ffffff22;border-radius:14px;background:#101820bb;font-size:12px;color:#c8d6df}.status b{color:#9ee6bf}.help{left:16px;bottom:16px;max-width:330px;padding:11px 13px;border:1px solid #ffffff20;border-radius:13px;background:#101820b8;color:#d8e2e9;font-size:12px;line-height:1.5}.mobile{display:none;position:fixed;z-index:3;bottom:22px;right:18px;gap:8px;touch-action:none}.pad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,48px);gap:5px}.controls{display:flex;flex-direction:column;gap:8px;justify-content:end}.mobile button{border:1px solid #ffffff40;background:#142330cc;color:#fff;border-radius:13px;font-size:18px;touch-action:none;box-shadow:0 4px 18px #0003}.mobile button:active,.mobile button.active{background:#277a69}.mobile .action{width:62px;height:48px;font-size:11px;font-weight:700}.pad [data-key=KeyW]{grid-column:2}.pad [data-key=KeyA]{grid-column:1;grid-row:2}.pad [data-key=KeyS]{grid-column:2;grid-row:2}.pad [data-key=KeyD]{grid-column:3;grid-row:2}.toast{position:fixed;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);padding:13px 17px;border-radius:12px;background:#101820e8;border:1px solid #ffffff25;color:#fff;text-align:center;max-width:85vw;display:none}.loading{position:fixed;inset:0;display:grid;place-items:center;background:#101820;z-index:10}.loading div{text-align:center}.loading b{letter-spacing:.18em}.loading span{display:block;color:#b7c9d5;margin-top:9px;font-size:13px}@media(max-width:700px){.mobile{display:flex}.help{bottom:14px;left:12px;max-width:44vw;font-size:11px}.status{top:85px;right:12px}.brand{top:12px;left:12px}.pad{grid-template-columns:repeat(3,43px);grid-template-rows:repeat(2,43px)}}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div><b>AROUND THE WORLD</b><span>Opening New Horizon City…</span></div></div>
+<canvas id="renderCanvas" aria-label="Playable 3D New Horizon City prototype"></canvas>
+<div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · FIRST PLAYABLE BUILD</span></div>
+<div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div></div>
+<div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog<br>Drag the scene to look around · Walk near buildings and street props to explore.</div>
+<div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+(() => {
+ const canvas=document.getElementById('renderCanvas'), loading=document.getElementById('loading'), posLabel=document.getElementById('position');
+ if(!window.BABYLON){loading.innerHTML='<div><b>Unable to load the 3D engine</b><span>Check your internet connection and refresh.</span></div>';return;}
+ const B= BABYLON, engine=new B.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,adaptToDeviceRatio:true});
+ const scene=new B.Scene(engine);scene.clearColor=new B.Color4(.57,.75,.84,1);scene.collisionsEnabled=true;
+ const camera=new B.ArcRotateCamera('followCamera',-Math.PI/2,1.18,10,new B.Vector3(0,1.5,0),scene);
+ camera.lowerRadiusLimit=5;camera.upperRadiusLimit=14;camera.lowerBetaLimit=.55;camera.upperBetaLimit=1.45;camera.wheelPrecision=55;camera.panningSensibility=0;camera.attachControl(canvas,true);camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
+ const hemi=new B.HemisphericLight('skyLight',new B.Vector3(0,1,0),scene);hemi.intensity=.82;hemi.groundColor=new B.Color3(.28,.32,.31);
+ const sun=new B.DirectionalLight('sun',new B.Vector3(-.45,-1,-.25),scene);sun.position=new B.Vector3(35,55,25);sun.intensity=1.25;
+ const mat=(name,color,rough=.8)=>{const m=new B.PBRMaterial(name,scene);m.albedoColor=B.Color3.FromHexString(color);m.roughness=rough;return m};
+ const grass=mat('park grass','#64836b'), asphalt=mat('road asphalt','#343c43'), sidewalk=mat('pavement','#aeb6b8'), white=mat('road markings','#e9e5ce'), glass=mat('blue glass','#6c9daa',.28), concrete=mat('warm concrete','#c9c2b4'), cream=mat('cream facade','#e3d7c3'), brick=mat('terracotta facade','#a96852'), dark=mat('dark facade','#53616b'), roof=mat('roof','#454d52'), green=mat('tree foliage','#397654'), trunk=mat('tree trunk','#654b37'), gold=mat('gold accent','#d9b56c',.35), skin=mat('skin','#a96f50'), clothes=mat('player jacket','#1f6f70'), pants=mat('player trousers','#273849'), shoe=mat('shoes','#20242b');
+ const ground=B.MeshBuilder.CreateGround('cityGround',{width:180,height:180},scene);ground.material=grass;ground.checkCollisions=true;
+ function box(name,x,y,z,w,h,d,material,coll=true){const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=material;m.checkCollisions=coll;return m}
+ // Main avenues and sidewalks
+ box('Central Avenue',0,.015,0,17,.03,180,asphalt,false);box('Cross Street',0,.02,0,180,.04,13,asphalt,false);
+ for(let z=-80;z<=80;z+=8){box('lane dash',0,.045,z, .18,.015,3.1,white,false)}
+ for(const x of [-9.5,9.5])box('avenue pavement',x,.08,0,2,.16,180,sidewalk,false);
+ for(const z of [-7.7,7.7])box('cross street pavement',0,.08,z,180,.16,2,sidewalk,false);
+ for(let x=-80;x<=80;x+=8){if(Math.abs(x)<12)continue;box('cross lane dash',x,.05,0,3.2,.015,.15,white,false)}
+ // Building lots: varied heights, facade panels, windows and rooftops
+ const facadeMats=[cream,brick,dark,concrete];
+ function building(x,z,w,d,h,material,seed){
+   box('building body',x,h/2+.16,z,w,h,d,material,true);
+   box('roof ledge',x,h+.18,z,w+.35,.25,d+.35,roof,true);
+   const cols=Math.max(2,Math.floor(w/2.1)), rows=Math.max(2,Math.floor((h-1.5)/2.1));
+   for(let c=0;c<cols;c++)for(let r=0;r<rows;r++){
+     const wx=x-w/2+(c+.5)*w/cols, wy=1.2+r*(h-1.7)/rows;
+     if(wy>h-.5)continue;
+     const win=box('window',wx,wy,z-d/2-.012,w/cols*.58,.95,.035,glass,false);
+     win.material=glass;
+     box('window sill',wx,wy-.53,z-d/2-.04,w/cols*.7,.07,.07,concrete,false);
+   }
+   box('shopfront',x,1.05,z-d/2-.035,w*.62,1.8,.07,glass,false);
+   box('sign band',x,2.15,z-d/2-.08,w*.72,.3,.12,gold,false);
+ }
+ for(let side of [-1,1])for(let i=0;i<9;i++){
+   const z=-69+i*17, x=side*(16+(i%3)*2), w=9+(i%3)*2, d=10+(i%2)*3, h=8+(i%4)*4;
+   building(x,z,w,d,h,facadeMats[(i+(side===1?1:0)+4)%4],i);
+ }
+ // Civic plaza buildings and central landmark
+ building(-28,-2,17,16,18,cream,4);box('Civic hall steps',-28,.18,-10,13,.36,4,concrete,false);
+ box('Civic hall sign',-28,3,-10.2,8,.45,.15,gold,false);
+ building(29,2,16,15,14,concrete,3);
+ // Park and waterfront promenade
+ box('neighborhood park',-42,.04,35,24,.08,28,grass,false);
+ for(let x=-51;x<=-33;x+=6)for(let z=26;z<=44;z+=6){
+   const t=B.MeshBuilder.CreateCylinder('tree trunk',{height:1.7,diameter:.45},scene);t.position.set(x,.9,z);t.material=trunk;
+   const crown=B.MeshBuilder.CreateSphere('tree crown',{diameter:2.7,segments:8},scene);crown.position.set(x,2.6,z);crown.material=green;
+ }
+ // Streetlights and planters
+ for(let z=-72;z<=72;z+=12)for(const x of [-10.7,10.7]){
+   const pole=B.MeshBuilder.CreateCylinder('streetlight pole',{height:4.2,diameter:.13},scene);pole.position.set(x,2.1,z);pole.material=roof;
+   box('streetlight arm',x+(x<0?.45:-.45),4.1,z,.9,.12,.12,roof,false);
+   const bulb=B.MeshBuilder.CreateSphere('streetlight bulb',{diameter:.32},scene);bulb.position.set(x+(x<0?.85:-.85),4.05,z);bulb.material=gold;
+ }
+ // Player character assembled from simple shapes; move the root and keep camera following it.
+ const player=new B.TransformNode('playerRoot',scene);player.position.set(0,0,12);
+ const body=B.MeshBuilder.CreateCapsule('player body',{height:1.35,radius:.34},scene);body.parent=player;body.position.y=1.05;body.material=clothes;body.checkCollisions=true;
+ const head=B.MeshBuilder.CreateSphere('player head',{diameter:.58,segments:12},scene);head.parent=player;head.position.y=1.95;head.material=skin;
+ const hair=mat('hair','#25272b');const hairMesh=B.MeshBuilder.CreateSphere('hair',{diameter:.61,segments:10},scene);hairMesh.parent=player;hairMesh.position.y=2.13;hairMesh.scaling.y=.5;hairMesh.material=hair;
+ for(const side of [-1,1]){
+   const leg=B.MeshBuilder.CreateCapsule('leg',{height:.8,radius:.15},scene);leg.parent=player;leg.position.set(side*.19,.43,0);leg.material=pants;
+   const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=player;foot.position.set(side*.19,.12,.08);
+   const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=clothes;
+ }
+ camera.lockedTarget=player;camera.target=new B.Vector3(0,1.2,12);
+ // Keyboard and touch controls
+ const keys=Object.create(null);window.addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault()});
+ window.addEventListener('keyup',e=>keys[e.code]=false);window.addEventListener('blur',()=>Object.keys(keys).forEach(k=>keys[k]=false));
+ document.querySelectorAll('[data-key]').forEach(btn=>{
+   const code=btn.dataset.key;const down=e=>{e.preventDefault();keys[code]=true;btn.classList.add('active')},up=e=>{e.preventDefault();keys[code]=false;btn.classList.remove('active')};
+   btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up);
+ });
+ let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
+ function showToast(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',1800)}
+ let last=performance.now(),walk=0;
+ engine.runRenderLoop(()=>{
+   const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
+   const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
+   const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+   if(forward||strafe){
+     const v=new B.Vector3(strafe,0,forward);v.normalize();
+     const angle=camera.alpha+Math.PI/2;
+     const dx=v.x*Math.cos(angle)+v.z*Math.sin(angle), dz=-v.x*Math.sin(angle)+v.z*Math.cos(angle);
+     const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
+     player.position.x+=dx*speed;player.position.z+=dz*speed;
+     player.rotation.y=Math.atan2(dx,dz);walk+=dt*10;
+     player.position.y=Math.abs(Math.sin(walk))*.045;
+   }else{player.position.y=0}
+   // Keep camera focused on the avatar without moving the world.
+   camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+   const x=player.position.x,z=player.position.z;
+   posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
+   scene.render();
+ });
+ window.addEventListener('resize',()=>engine.resize());
+ scene.executeWhenReady(()=>{loading.style.display='none';});
+})();
+</script>
+</body>
+</html>
