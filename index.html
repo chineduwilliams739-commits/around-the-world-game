@@ -76,7 +76,7 @@
    const bulb=B.MeshBuilder.CreateSphere('streetlight bulb',{diameter:.32},scene);bulb.position.set(x+(x<0?.85:-.85),4.05,z);bulb.material=gold;
  }
  // Player character assembled from simple shapes; move the root and keep camera following it.
- const player=new B.TransformNode('playerRoot',scene);player.position.set(0,0,12);
+ const player=B.MeshBuilder.CreateBox('playerRoot',{width:.8,height:2,depth:.8},scene);player.isVisible=false;player.visibility=0;player.checkCollisions=true;player.ellipsoid=new B.Vector3(.42,1,.42);player.ellipsoidOffset=new B.Vector3(0,1,0);player.position.set(0,0,12);
  const body=B.MeshBuilder.CreateCapsule('player body',{height:1.35,radius:.34},scene);body.parent=player;body.position.y=1.05;body.material=clothes;body.checkCollisions=true;
  const head=B.MeshBuilder.CreateSphere('player head',{diameter:.58,segments:12},scene);head.parent=player;head.position.y=1.95;head.material=skin;
  const hair=mat('hair','#25272b');const hairMesh=B.MeshBuilder.CreateSphere('hair',{diameter:.61,segments:10},scene);hairMesh.parent=player;hairMesh.position.y=2.13;hairMesh.scaling.y=.5;hairMesh.material=hair;
@@ -131,7 +131,9 @@
      const dx=side*(-Math.sin(camera.alpha))+ahead*(-Math.cos(camera.alpha));
      const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
      const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
-     player.position.x+=dx*speed;player.position.z+=dz*speed;
+     player.moveWithCollisions(new B.Vector3(dx*speed,0,dz*speed));
+     // Keep the character inside the playable city district.
+     player.position.x=B.Scalar.Clamp(player.position.x,-84,84);player.position.z=B.Scalar.Clamp(player.position.z,-84,84);
      player.rotation.y=Math.atan2(dx,dz);walk+=dt*10;
      player.position.y=Math.abs(Math.sin(walk))*.045;
    }else{player.position.y=0}
