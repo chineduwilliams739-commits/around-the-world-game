@@ -11,14 +11,16 @@
 .map-toggle{position:fixed;z-index:8;top:116px;right:16px;pointer-events:auto;border:1px solid #ffffff45;border-radius:11px;background:#10212fe8;color:#fff;padding:10px 14px;font-weight:800;letter-spacing:.04em;box-shadow:0 4px 18px #0005}
 .map-panel{display:none;position:fixed;z-index:7;top:160px;right:16px;width:min(310px,calc(100vw - 24px));padding:12px;border:1px solid #ffffff35;border-radius:16px;background:#101820ed;backdrop-filter:blur(14px);box-shadow:0 12px 35px #0008;pointer-events:auto}
 .map-panel.open{display:block}.map-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.map-head strong{font-size:13px;letter-spacing:.08em}.map-head button,.map-destinations button{border:1px solid #ffffff2c;border-radius:9px;background:#243744;color:#fff;padding:7px 9px;font-size:12px}.map-panel p{margin:5px 0 8px;color:#b8c9d3;font-size:11px;line-height:1.4}.city-map{display:block;width:100%;height:auto;border-radius:10px;background:#172b31;border:1px solid #ffffff20}.map-destinations{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}.map-destinations button{text-align:left;display:flex;align-items:center;gap:8px}.map-destinations button span{display:inline-block;width:9px;height:9px;border-radius:50%;background:#f3c969;flex:none}.map-destinations button:nth-child(2) span{background:#79d79d}.map-destinations button:nth-child(3) span{background:#7cc8ef}.map-destinations button.selected{outline:2px solid #e8c56f;background:#314655}.map-guidance{margin-top:8px;padding:9px;border-radius:9px;background:#ffffff0d;color:#f4e1a6;font-size:12px;line-height:1.4}.map-player{fill:#ff625d;stroke:#fff;stroke-width:2}.map-pin{cursor:pointer}.map-pin:focus{outline:none;stroke:#fff;stroke-width:3}
-@media(max-width:700px){.map-toggle{top:136px;right:12px;padding:8px 11px}.map-panel{top:178px;right:12px;width:min(290px,calc(100vw - 24px));max-height:calc(100vh - 195px);overflow:auto}.help{max-width:40vw}.status{max-width:44vw}}
+@media(max-width:700px){.map-toggle{top:136px;right:12px;padding:8px 11px}.map-panel{top:calc(env(safe-area-inset-top, 0px) + 178px);right:12px;left:auto;width:min(290px,calc(100vw - 24px));max-height:calc(100dvh - 194px - env(safe-area-inset-bottom, 0px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.help{max-width:40vw}.status{max-width:44vw}}
+@media(max-width:700px) and (orientation:landscape){.map-toggle{top:76px;right:10px}.map-panel{top:118px;right:10px;max-height:calc(100dvh - 128px - env(safe-area-inset-bottom, 0px));width:min(300px,calc(100vw - 20px));padding:9px}.map-panel p{font-size:10px}.city-map{max-height:38dvh;width:auto;max-width:100%;margin:0 auto}.map-destinations{gap:4px;margin-top:5px}.map-destinations button{padding:5px 7px}.map-guidance{padding:6px;margin-top:5px;font-size:11px}}
+@media(max-height:500px){.map-panel{padding:8px}.map-head{margin-bottom:4px}.map-panel p{margin:3px 0 5px}.city-map{max-height:32dvh}.map-destinations{grid-template-columns:1fr 1fr}.map-destinations button:last-child{grid-column:1 / -1}}
 </style>
 </head>
 <body>
 <div class="loading" id="loading"><div><b>AROUND THE WORLD</b><span>Opening New Horizon City…</span></div></div>
 <canvas id="renderCanvas" aria-label="Playable 3D New Horizon City prototype"></canvas>
 <div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · FIRST PLAYABLE BUILD · MOBILE FIX</span></div>
-<div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div></div>
+<div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div><div id="environmentLabel">TIME: DAY · WEATHER: CLEAR</div></div>
 <div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
 <div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="interactButton">INTERACT</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
@@ -43,7 +45,7 @@
   <g id="mapPinCivic" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Civic Hall"><circle cx="103" cy="123" r="8" fill="#f3c969" stroke="#fff" stroke-width="1.5"/><text x="103" y="126" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">C</text><text x="103" y="111" font-size="9" fill="#fff" text-anchor="middle">CIVIC HALL</text></g>
   <g id="mapPinPark" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Green Park"><circle cx="84" cy="187" r="7" fill="#79d79d" stroke="#fff" stroke-width="1.5"/><text x="84" y="190" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">P</text></g>
   <g id="mapPinShop" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Downtown Shop"><circle cx="179" cy="130" r="7" fill="#7cc8ef" stroke="#fff" stroke-width="1.5"/><text x="179" y="133" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">S</text><text x="201" y="120" font-size="8" fill="#fff" text-anchor="middle">SHOP</text></g>
-  <circle id="mapPlayerDot" class="map-player" cx="140" cy="156" r="5"/>
+  <g id="mapPlayerMarker" transform="translate(140 156) rotate(180)"><circle class="map-player" cx="0" cy="0" r="5"/><path id="mapPlayerArrow" d="M0 -11 L-4 -3 L0 -5 L4 -3 Z" fill="#ff625d" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></g>
  </svg>
  <div class="map-destinations"><button data-destination="civic"><span></span>Civic Hall — public services</button><button data-destination="park"><span></span>Green Park — park & trees</button><button data-destination="shop"><span></span>Downtown Shop — storefront</button></div>
  <div class="map-guidance" id="mapGuidance">Destination: none selected. Choose a marked place above.</div>
@@ -62,6 +64,33 @@
  const sun=new B.DirectionalLight('sun',new B.Vector3(-.45,-1,-.25),scene);sun.position=new B.Vector3(35,55,25);sun.intensity=1.25;
  const mat=(name,color,rough=.8)=>{const m=new B.PBRMaterial(name,scene);m.albedoColor=B.Color3.FromHexString(color);m.roughness=rough;return m};
  const grass=mat('park grass','#64836b'), asphalt=mat('road asphalt','#343c43'), sidewalk=mat('pavement','#aeb6b8'), white=mat('road markings','#e9e5ce'), glass=mat('blue glass','#6c9daa',.28), concrete=mat('warm concrete','#c9c2b4'), cream=mat('cream facade','#e3d7c3'), brick=mat('terracotta facade','#a96852'), dark=mat('dark facade','#53616b'), roof=mat('roof','#454d52'), green=mat('tree foliage','#397654'), trunk=mat('tree trunk','#654b37'), gold=mat('gold accent','#d9b56c',.35), skin=mat('skin','#a96f50'), clothes=mat('player jacket','#1f6f70'), pants=mat('player trousers','#273849'), shoe=mat('shoes','#20242b');
+ // Lightweight environmental simulation: a full 24-minute day and changing weather.
+ const environmentLabel=document.getElementById('environmentLabel');
+ const nightSky=new B.Color3(.035,.075,.13),daySky=new B.Color3(.57,.75,.84),stormSky=new B.Color3(.23,.31,.37);
+ const cloudMaterial=new B.StandardMaterial('weatherCloudMaterial',scene);cloudMaterial.diffuseColor=new B.Color3(.72,.78,.82);cloudMaterial.emissiveColor=new B.Color3(.15,.17,.2);cloudMaterial.alpha=.42;cloudMaterial.disableLighting=true;
+ const clouds=[];
+ for(let i=0;i<7;i++){const cloud=B.MeshBuilder.CreateSphere('weatherCloud'+i,{diameter:1,segments:7},scene);cloud.scaling.set(7+(i%3)*2,1.15,3.4+(i%2));cloud.position.set(-65+i*21,25+(i%3)*1.5,-42+(i%4)*26);cloud.material=cloudMaterial;cloud.isPickable=false;clouds.push(cloud);}
+ const rainDrops=[];
+ for(let i=0;i<48;i++){const drop=B.MeshBuilder.CreateBox('rainDrop'+i,{width:.025,height:.42,depth:.025},scene);drop.material=glass;drop.isPickable=false;drop.isVisible=false;rainDrops.push(drop);}
+ function updateEnvironment(now,dt){
+   const seconds=now/1000,dayPhase=(seconds%1440)/1440;
+   const daylight=B.Scalar.Clamp((Math.sin((dayPhase-.25)*Math.PI*2)+.12)/.82,.08,1);
+   const weatherPhase=seconds%300;
+   const weather=weatherPhase<150?'CLEAR':weatherPhase<220?'CLOUDY':weatherPhase<280?'RAIN':'CLEARING';
+   const cloudiness=weather==='CLEAR'?.12:(weather==='CLOUDY'?.62:(weather==='RAIN'?.96:.45));
+   hemi.intensity=.18+daylight*.67;sun.intensity=.06+daylight*(weather==='RAIN'?.42:1.18);
+   sun.direction=new B.Vector3(-.45,-Math.max(.12,daylight),-.25);
+   const sky=B.Color3.Lerp(nightSky,daySky,daylight),tint=weather==='RAIN'?.62:(weather==='CLOUDY'?.82:1);
+   scene.clearColor.r=sky.r*tint+(weather==='RAIN'?stormSky.r*.38:0);
+   scene.clearColor.g=sky.g*tint+(weather==='RAIN'?stormSky.g*.38:0);
+   scene.clearColor.b=sky.b*tint+(weather==='RAIN'?stormSky.b*.38:0);
+   clouds.forEach(cloud=>{cloud.isVisible=cloudiness>.25;cloud.position.x+=dt*(weather==='RAIN'?1.5:.45);if(cloud.position.x>100)cloud.position.x=-100;cloud.visibility=cloudiness;});
+   const raining=weather==='RAIN';
+   rainDrops.forEach((drop,i)=>{drop.isVisible=raining;if(!raining)return;if(drop.position.y<.5||drop.position.y===0)drop.position.set(player.position.x+((i*17)%31)-15,12+((i*7)%8),player.position.z+((i*11)%31)-15);drop.position.y-=dt*17;drop.position.x-=dt*1.5;});
+   const clockMinutes=Math.floor(dayPhase*24*60),hour=Math.floor(clockMinutes/60),minute=clockMinutes%60;
+   const period=hour<5?'NIGHT':hour<7?'DAWN':hour<18?'DAY':hour<20?'DUSK':'NIGHT';
+   environmentLabel.textContent='TIME: '+period+' '+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+' · WEATHER: '+weather;
+ }
  const ground=B.MeshBuilder.CreateGround('cityGround',{width:180,height:180},scene);ground.material=grass;ground.checkCollisions=true;
  const solidObstacles=[];
  function box(name,x,y,z,w,h,d,material,coll=true){const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=material;m.checkCollisions=false;if(coll)solidObstacles.push({x,z,halfW:w/2+.55,halfD:d/2+.55});return m}
@@ -146,7 +175,7 @@
    {name:'Downtown Shop',x:29,z:-7.5,radius:4.5,description:'This storefront is reserved for the future shopping system, including prices, inventory, and player-owned businesses.',action:'info'}
  ];
 
- const mapPanel=document.getElementById('mapPanel'), mapToggle=document.getElementById('mapToggle'), mapGuidance=document.getElementById('mapGuidance'), mapPlayerDot=document.getElementById('mapPlayerDot');
+ const mapPanel=document.getElementById('mapPanel'), mapToggle=document.getElementById('mapToggle'), mapGuidance=document.getElementById('mapGuidance'), mapPlayerMarker=document.getElementById('mapPlayerMarker');
  const destinations={
    civic:{name:'Civic Hall',x:-28,z:-12.3,pin:'mapPinCivic'},
    park:{name:'Green Park',x:-42,z:35,pin:'mapPinPark'},
@@ -158,7 +187,7 @@
  function setDestination(key){selectedDestination=destinations[key];document.querySelectorAll('[data-destination]').forEach(b=>b.classList.toggle('selected',b.dataset.destination===key));if(selectedDestination){const d=Math.hypot(player.position.x-selectedDestination.x,player.position.z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away. Follow the map and move toward its marker.';showToast('Destination set: '+selectedDestination.name);}}
  document.querySelectorAll('[data-destination]').forEach(b=>b.addEventListener('click',()=>setDestination(b.dataset.destination)));
  [['mapPinCivic','civic'],['mapPinPark','park'],['mapPinShop','shop']].forEach(([id,key])=>{const el=document.getElementById(id);el.addEventListener('click',()=>setDestination(key));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setDestination(key);}})});
- function updateMap(){const x=player.position.x,z=player.position.z;mapPlayerDot.setAttribute('cx',String(20+(x+90)/180*240));mapPlayerDot.setAttribute('cy',String(20+(z+90)/180*240));if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
+ function updateMap(){const x=player.position.x,z=player.position.z,cx=20+(x+90)/180*240,cy=20+(z+90)/180*240;mapPlayerMarker.setAttribute('transform','translate('+cx+' '+cy+') rotate('+(180-player.rotation.y*180/Math.PI)+')');if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
 
  let insideCivicHall=false, nearbyInteraction=null;
  function refreshInteraction(){
@@ -245,7 +274,7 @@
    }else{player.position.y=0}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   refreshInteraction();updateMap();
+   updateEnvironment(now,dt);refreshInteraction();updateMap();
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
