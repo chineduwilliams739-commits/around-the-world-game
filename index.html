@@ -274,10 +274,12 @@
    modelRoot.parent=player;
    modelRoot.position.set(0,0,0);
    modelRoot.scaling.scaleInPlace(.03);
-   // Align the imported rig's actual lowest point with the world floor.
+   // Normalize the imported model to a human-sized height, then align its feet.
    // The asset pivot is not guaranteed to sit at the feet.
    modelRoot.computeWorldMatrix(true);
-   const modelBounds=modelRoot.getHierarchyBoundingVectors(true);
+   let modelBounds=modelRoot.getHierarchyBoundingVectors(true);
+   const modelHeight=modelBounds.max.y-modelBounds.min.y;
+   if(modelHeight>0.01){modelRoot.scaling.scaleInPlace(1.8/modelHeight);modelRoot.computeWorldMatrix(true);modelBounds=modelRoot.getHierarchyBoundingVectors(true);}
    modelRoot.position.y+=player.position.y-modelBounds.min.y;
    modelRoot.computeWorldMatrix(true);
    modelRoot.isPickable=false;
@@ -530,7 +532,7 @@
  function interact(){
    if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='vehicleExit'){
-     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x-Math.sin(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.cos(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=player;camera.alpha=-car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
+     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=player;camera.alpha=-car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
    }else if(nearbyInteraction.action==='vehicleEnter'){
      activeVehicle=nearbyInteraction.vehicle;vehicleSpeed=0;activeVehicle.speedCurrent=0;
      if(!activeVehicle.driverGone){activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
