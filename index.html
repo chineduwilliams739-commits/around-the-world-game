@@ -419,13 +419,20 @@
      npc.root.rotation.y=Math.atan2(player.position.x-npc.root.position.x,player.position.z-npc.root.position.z);
      player.rotation.y=Math.atan2(npc.root.position.x-player.position.x,npc.root.position.z-player.position.z);
      const seconds=performance.now()/1000,hour=Math.floor((seconds%1440)/60);
+     const roleGreetings={
+       commuter:['I’m heading along my usual route. The city gets busy in the morning!','I’m on my way across town. Hope your day is going well.','These streets are lively today. Keep an eye out crossing the road.'],
+       park:['I come here to clear my head. The park is peaceful, isn’t it?','A little fresh air makes the day better. Enjoy the park!','I like taking a break from the busy streets here.'],
+       social:['I was just hoping to bump into someone I know. How are you?','There’s always someone to catch up with around here.','New Horizon City feels friendlier when people stop to talk.'],
+       errands:['I have a few things to take care of around town.','I’m making a quick stop before carrying on with my day.','Busy day for errands! Hope everything is going smoothly for you.']
+     };
      const greeting=npc.playerMeetings===1
-       ?['Hi there! I’m '+npc.name+'. Nice to meet you.','Hello! How are you enjoying New Horizon City?','Hey! It’s a lovely day to explore the city.'][npc.index%3]
+       ?roleGreetings[npc.routine][npc.index%3]
        :npc.playerMeetings<4
          ?['Good to see you again!','Hey, we’ve met before. How have you been?','Hello again! What brings you around here?'][npc.index%3]
          :['There you are, my friend!','Always nice running into you again.','Good to see a familiar face!'][npc.index%3];
      const timeNote=hour<6||hour>=20?' It’s getting late.':hour>=6&&hour<10?' I’m on my morning route.':hour>=17&&hour<21?' I’m winding down for the evening.':'';
-     showToast(npc.name+': “'+greeting+timeNote+'”');
+     const friendshipNote=npc.playerMeetings>=4?' We’re becoming good friends!':'';
+     showToast(npc.name+': “'+greeting+timeNote+friendshipNote+'”');
    }else if(nearbyInteraction.action==='enter'){
      insideCivicHall=true;player.position.set(-28,0,-4.5);camera.alpha=-Math.PI/2;
      showToast('Entered Civic Hall · Explore the lobby and approach the service desk');
