@@ -42,26 +42,46 @@
  for(let x=-80;x<=80;x+=8){if(Math.abs(x)<12)continue;box('cross lane dash',x,.05,0,3.2,.015,.15,white,false)}
  // Building lots: varied heights, facade panels, windows and rooftops
  const facadeMats=[cream,brick,dark,concrete];
- function building(x,z,w,d,h,material,seed){
-   box('building body',x,h/2+.16,z,w,h,d,material,true);
-   box('roof ledge',x,h+.18,z,w+.35,.25,d+.35,roof,true);
+ function building(x,z,w,d,h,material,seed,hollow=false){
+   if(!hollow)box('building body',x,h/2+.16,z,w,h,d,material,true);
+   else{
+     // Hollow civic building: separate wall sections leave a real walk-through entrance.
+     const wall=.65, front=z-d/2, back=z+d/2, sideW=(w-wall)/2;
+     box('civic interior floor',x,.19,z,w-.8,.12,d-.8,concrete,false);
+     box('civic left wall',x-w/2+wall/2,h/2+.16,z,wall,h,d,material,true);
+     box('civic right wall',x+w/2-wall/2,h/2+.16,z,wall,h,d,material,true);
+     box('civic rear wall',x,h/2+.16,back-wall/2,w,h,wall,material,true);
+     box('civic entrance left pier',x-w*.32,h/2+.16,front+wall/2,w*.36,h,wall,material,true);
+     box('civic entrance right pier',x+w*.32,h/2+.16,front+wall/2,w*.36,h,wall,material,true);
+     box('civic entrance lintel',x,h-.25,front+wall/2,w*.32,.5,wall,material,true);
+     box('civic reception counter',x,1.05,z+2.1,5,.95,.8,dark,false);
+     box('civic reception desk top',x,1.56,z+2.1,5.3,.12,1,gold,false);
+     for(const bx of [-4.5,4.5]){
+       box('civic waiting bench',x+bx,.65,z+4.4,2.2,.25,.65,roof,false);
+       box('civic bench back',x+bx,1,z+4.7,2.2,.55,.12,roof,false);
+     }
+     box('civic service sign',x,3.1,z+2.1,4,.6,.12,gold,false);
+   }
+   box('roof ledge',x,h+.18,z,w+.35,.25,d+.35,roof,!hollow);
    const cols=Math.max(2,Math.floor(w/2.1)), rows=Math.max(2,Math.floor((h-1.5)/2.1));
    for(let c=0;c<cols;c++)for(let r=0;r<rows;r++){
      const wx=x-w/2+(c+.5)*w/cols, wy=1.2+r*(h-1.7)/rows;
      if(wy>h-.5)continue;
-     const win=box('window',wx,wy,z-d/2-.012,w/cols*.58,.95,.035,glass,false);
-     win.material=glass;
+     if(hollow && (wx>x-w*.18 && wx<x+w*.18 && wy<3.5))continue;
+     box('window',wx,wy,z-d/2-.012,w/cols*.58,.95,.035,glass,false);
      box('window sill',wx,wy-.53,z-d/2-.04,w/cols*.7,.07,.07,concrete,false);
    }
-   box('shopfront',x,1.05,z-d/2-.035,w*.62,1.8,.07,glass,false);
-   box('sign band',x,2.15,z-d/2-.08,w*.72,.3,.12,gold,false);
+   if(!hollow){
+     box('shopfront',x,1.05,z-d/2-.035,w*.62,1.8,.07,glass,false);
+     box('sign band',x,2.15,z-d/2-.08,w*.72,.3,.12,gold,false);
+   }
  }
  for(let side of [-1,1])for(let i=0;i<9;i++){
    const z=-69+i*17, x=side*(16+(i%3)*2), w=9+(i%3)*2, d=10+(i%2)*3, h=8+(i%4)*4;
    building(x,z,w,d,h,facadeMats[(i+(side===1?1:0)+4)%4],i);
  }
  // Civic plaza buildings and central landmark
- building(-28,-2,17,16,18,cream,4);box('Civic hall steps',-28,.18,-10,13,.36,4,concrete,false);
+ building(-28,-2,17,16,18,cream,4,true);box('Civic hall steps',-28,.18,-10,13,.36,4,concrete,false);
  box('Civic hall sign',-28,3,-10.2,8,.45,.15,gold,false);
  building(29,2,16,15,14,concrete,3);
  // Park and waterfront promenade
@@ -90,21 +110,36 @@
  // Simple first-stage city interactions: nearby landmarks can be inspected.
  const interactionHint=document.getElementById('interactionHint');
  const interactables=[
-   {name:'Civic Hall',x:-28,z:-13,radius:4.5,description:'Civic Hall is the city’s public-services landmark. Future stages will add permits, civic records, and public-service counters here.'},
-   {name:'Green Park',x:-42,z:20,radius:5,description:'Green Park is a public place to relax and meet other residents. Social activities and NPC routines will be added in a later stage.'},
-   {name:'Downtown Shop',x:29,z:-7.5,radius:4.5,description:'This storefront is reserved for the future shopping system, including prices, inventory, and player-owned businesses.'}
+   {name:'Civic Hall entrance',x:-28,z:-12.3,radius:3.2,description:'Enter the Civic Hall public-service lobby.',action:'enter'},
+   {name:'Green Park',x:-42,z:20,radius:5,description:'Green Park is a public place to relax and meet other residents. Social activities and NPC routines will be added in a later stage.',action:'info'},
+   {name:'Downtown Shop',x:29,z:-7.5,radius:4.5,description:'This storefront is reserved for the future shopping system, including prices, inventory, and player-owned businesses.',action:'info'}
  ];
- let nearbyInteraction=null;
+ let insideCivicHall=false, nearbyInteraction=null;
  function refreshInteraction(){
    const p=player.position;
    nearbyInteraction=null;let best=Infinity;
-   for(const item of interactables){const d=Math.hypot(p.x-item.x,p.z-item.z);if(d<item.radius&&d<best){nearbyInteraction=item;best=d;}}
+   if(insideCivicHall){
+     const exitDist=Math.hypot(p.x+28,p.z+9.3);
+     const deskDist=Math.hypot(p.x+28,p.z-0.1);
+     if(exitDist<4.2){nearbyInteraction={name:'Exit Civic Hall',action:'exit',description:'Return to Central Avenue.'};best=exitDist;}
+     if(deskDist<3.2&&deskDist<best){nearbyInteraction={name:'Public Services Desk',action:'desk',description:'The public-service counter is ready for future permits, civic records, and resident services.'};}
+   }else{
+     for(const item of interactables){const d=Math.hypot(p.x-item.x,p.z-item.z);if(d<item.radius&&d<best){nearbyInteraction=item;best=d;}}
+   }
    interactionHint.style.display=nearbyInteraction?'block':'none';
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
  function interact(){
-   if(!nearbyInteraction){showToast('Move closer to Civic Hall, Green Park, or the Downtown Shop');return;}
-   showToast(nearbyInteraction.name+': '+nearbyInteraction.description);
+   if(!nearbyInteraction){showToast('Approach Civic Hall, Green Park, or the Downtown Shop');return;}
+   if(nearbyInteraction.action==='enter'){
+     insideCivicHall=true;player.position.set(-28,0,-7.7);camera.alpha=-Math.PI/2;
+     showToast('Entered Civic Hall · Explore the lobby and approach the service desk');
+   }else if(nearbyInteraction.action==='exit'){
+     insideCivicHall=false;player.position.set(-28,0,-14.2);
+     showToast('You are back outside Civic Hall');
+   }else if(nearbyInteraction.action==='desk'){
+     showToast(nearbyInteraction.description);
+   }else showToast(nearbyInteraction.name+': '+nearbyInteraction.description);
  }
  document.getElementById('interactButton').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
  // Keyboard and touch controls
@@ -153,11 +188,12 @@
      const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
      const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
      // Resolve each axis separately so collisions cannot freeze the player.
-     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,-84,84);
-     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,-84,84);
+     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,insideCivicHall?-35:-84,insideCivicHall?-21:84);
+     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,insideCivicHall?-9.6:-84,insideCivicHall?5:84);
      const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW&&Math.abs(z-o.z)<o.halfD);
      if(!blocked(nextX,player.position.z))player.position.x=nextX;
      if(!blocked(player.position.x,nextZ))player.position.z=nextZ;
+     if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}
      player.rotation.y=Math.atan2(dx,dz);walk+=dt*10;
      player.position.y=Math.abs(Math.sin(walk))*.045;
    }else{player.position.y=0}
