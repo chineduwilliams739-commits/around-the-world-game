@@ -132,7 +132,7 @@
  function interact(){
    if(!nearbyInteraction){showToast('Approach Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='enter'){
-     insideCivicHall=true;player.position.set(-28,0,-7.7);camera.alpha=-Math.PI/2;
+     insideCivicHall=true;player.position.set(-28,0,-4.5);camera.alpha=-Math.PI/2;
      showToast('Entered Civic Hall · Explore the lobby and approach the service desk');
    }else if(nearbyInteraction.action==='exit'){
      insideCivicHall=false;player.position.set(-28,0,-14.2);
