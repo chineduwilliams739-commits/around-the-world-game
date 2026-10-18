@@ -257,6 +257,42 @@
  }
  const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
+ // Upgrade the player to the free rigged BabylonJS Dude model when it loads.
+ // The procedural avatar stays visible until the rig and its skeleton are confirmed.
+ let playerRigAnimatables=[];
+ let playerRigLoaded=false;
+ async function upgradePlayerModel(){
+  const proceduralMeshes=player.getChildMeshes(false);
+  try{
+   const imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
+   const modelRoot=imported.meshes[0];
+   const visibleRigMeshes=imported.meshes.filter(mesh=>mesh.getTotalVertices()>0);
+   if(!modelRoot||!visibleRigMeshes.length||!imported.skeletons.length){
+    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
+    throw new Error("The model did not contain a visible rigged character.");
+   }
+   modelRoot.parent=player;
+   modelRoot.position.set(0,0,0);
+   modelRoot.scaling.scaleInPlace(.03);
+   modelRoot.isPickable=false;
+   imported.meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isPickable=false;mesh.checkCollisions=false;});
+   imported.skeletons.forEach(skeleton=>{
+    const anim=scene.beginAnimation(skeleton,0,120,true,1);
+    if(anim){anim.pause();playerRigAnimatables.push(anim);}
+   });
+   if(!playerRigAnimatables.length){
+    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
+    throw new Error("The character skeleton could not be animated.");
+   }
+   proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
+   playerRigLoaded=true;
+   console.info("Rigged player model loaded successfully.");
+  }catch(error){
+   console.warn("Keeping the procedural player avatar because the free rigged model could not load:",error);
+  }
+ }
+ void upgradePlayerModel();
+
  // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
  const npcMaterials=npcPalette.map((c,i)=>mat('resident outfit '+i,c));
@@ -611,11 +647,12 @@
      walk+=dt*(running?15:10);
      const stride=running?.54:.42,armSwing=running?.36:.28;
      player.position.y=Math.abs(Math.sin(walk))*(running?.065:.045);
+     if(playerRigLoaded)playerRigAnimatables.forEach(anim=>{if(anim.paused)anim.restart();});
      playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
      playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
      playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
      playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
-   }else{player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
+   }else{if(playerRigLoaded)playerRigAnimatables.forEach(anim=>{if(!anim.paused)anim.pause();});player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
    updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);refreshInteraction();updateMap();
