@@ -273,14 +273,14 @@
    }
    modelRoot.parent=player;
    modelRoot.position.set(0,0,0);
+   modelRoot.rotation.y=Math.PI; // The Dude asset faces opposite the game's +Z forward direction.
    modelRoot.scaling.scaleInPlace(.03);
-   // Normalize the imported model to a human-sized height, then align its feet.
-   // The asset pivot is not guaranteed to sit at the feet.
+   // Normalize the full imported hierarchy, then offset the asset's actual feet to the ground.
    modelRoot.computeWorldMatrix(true);
    let modelBounds=modelRoot.getHierarchyBoundingVectors(true);
    const modelHeight=modelBounds.max.y-modelBounds.min.y;
-   if(modelHeight>0.01){modelRoot.scaling.scaleInPlace(1.8/modelHeight);modelRoot.computeWorldMatrix(true);modelBounds=modelRoot.getHierarchyBoundingVectors(true);}
-   modelRoot.position.y+=player.position.y-modelBounds.min.y;
+   if(modelHeight>0.01){modelRoot.scaling.scaleInPlace(1.95/modelHeight);modelRoot.computeWorldMatrix(true);modelBounds=modelRoot.getHierarchyBoundingVectors(true);}
+   modelRoot.position.y-=modelBounds.min.y-player.position.y;
    modelRoot.computeWorldMatrix(true);
    modelRoot.isPickable=false;
    imported.meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isPickable=false;mesh.checkCollisions=false;});
@@ -351,52 +351,48 @@
  // BabylonJS Assets' Dude model is CC BY 4.0; see the visible attribution below.
  // Procedural residents remain as a fallback if the external asset cannot load.
  async function upgradeResidentModels(){
-  try{
-   const source=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
-   const sourceParts=source.meshes.filter(m=>m!==source.meshes[0] && m.getTotalVertices()>0);
-   if(!sourceParts.length||!source.skeletons.length)throw new Error('The character model did not contain a rigged mesh.');
-   for(const part of source.meshes)part.setEnabled(false);
-   residents.forEach((npc)=>{
+  // Import a complete independent hierarchy for every resident. Cloning skinned
+  // mesh pieces and skeletons separately can detach the skin from its bone bind poses.
+  for(const npc of residents){
+   let imported=null;
+   try{
+    imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
+    const modelRoot=imported.meshes[0];
+    const visibleMeshes=imported.meshes.filter(m=>m.getTotalVertices()>0);
+    if(!modelRoot||!visibleMeshes.length||!imported.skeletons.length)throw new Error("No complete rigged resident model was imported.");
+    const rigRoot=new B.TransformNode("residentRigRoot"+npc.index,scene);
+    rigRoot.position.copyFrom(npc.root.position);
+    rigRoot.rotation.y=npc.root.rotation.y;
+    modelRoot.parent=rigRoot;
+    modelRoot.position.set(0,0,0);
+    modelRoot.rotation.y=Math.PI;
+    modelRoot.scaling.scaleInPlace(.03);
+    modelRoot.computeWorldMatrix(true);
+    let bounds=modelRoot.getHierarchyBoundingVectors(true);
+    const height=bounds.max.y-bounds.min.y;
+    const targetHeight=1.82+((npc.index%3)-1)*.035;
+    if(height>.01){modelRoot.scaling.scaleInPlace(targetHeight/height);modelRoot.computeWorldMatrix(true);bounds=modelRoot.getHierarchyBoundingVectors(true);}
+    modelRoot.position.y-=bounds.min.y-rigRoot.position.y;
+    modelRoot.computeWorldMatrix(true);
+    imported.meshes.forEach(m=>{m.setEnabled(true);m.isPickable=false;m.checkCollisions=false;});
+    const animations=imported.skeletons.map(s=>scene.beginAnimation(s,0,120,true,(npc.index%3===0?1:.9)));
+    if(!animations.length)throw new Error("Resident skeleton animation could not start.");
     const proceduralRoot=npc.root;
-    proceduralRoot.setEnabled(false);
-    const rigRoot=new B.TransformNode('residentRigRoot'+npc.index,scene);
-    rigRoot.position.copyFrom(proceduralRoot.position);
-    rigRoot.rotation.y=proceduralRoot.rotation.y;
-    const skeletonMap=new Map(),clonedSkeletons=[];
-    sourceParts.forEach((original,j)=>{
-     const clone=original.clone('residentRig'+npc.index+'Part'+j);
-     if(!clone)return;
-     clone.parent=rigRoot;
-     clone.position.copyFrom(original.position);
-     clone.rotation.copyFrom(original.rotation);
-     clone.scaling.copyFrom(original.scaling);
-     clone.isPickable=false;clone.checkCollisions=false;
-     if(original.skeleton){
-      let clonedSkeleton=skeletonMap.get(original.skeleton);
-      if(!clonedSkeleton){
-       clonedSkeleton=original.skeleton.clone('residentRig'+npc.index+'Skeleton');
-       skeletonMap.set(original.skeleton,clonedSkeleton);clonedSkeletons.push(clonedSkeleton);
-      }
-      clone.skeleton=clonedSkeleton;
-     }
-    });
-    rigRoot.scaling.setAll(.03*(.92+(npc.index%4)*.045));
     npc.proceduralRoot=proceduralRoot;
     npc.root=rigRoot;
     npc.rigged=true;
-    npc.rigAnimations=clonedSkeletons.map((skeleton,i)=>scene.beginAnimation(skeleton,0,120,true,(npc.index%3===0?1.0:.86)+(i*.01)));
-    const localScale=rigRoot.scaling.x;
-    if(npc.phone){npc.phone.parent=rigRoot;npc.phone.position.scaleInPlace(1/localScale);npc.phone.scaling.scaleInPlace(1/localScale);npc.phone.isVisible=false;}
-    if(npc.bag){npc.bag.parent=rigRoot;npc.bag.position.scaleInPlace(1/localScale);npc.bag.scaling.scaleInPlace(1/localScale);}
-   });
-   source.meshes.forEach(m=>{if(!m.isDisposed())m.dispose(false,false);});
-   console.info('Rigged resident models loaded:',residents.length);
-  }catch(error){
-   console.warn('Using procedural residents because the free rigged model could not load:',error);
-   residents.forEach(npc=>{if(npc.proceduralRoot)npc.proceduralRoot.setEnabled(true);});
+    npc.rigAnimations=animations;
+    if(npc.phone)npc.phone.setEnabled(false);
+    if(npc.bag)npc.bag.setEnabled(false);
+    proceduralRoot.setEnabled(false);
+    console.info("Loaded independent rigged resident",npc.index);
+   }catch(error){
+    console.warn("Resident rig upgrade failed; keeping the complete procedural resident:",npc.index,error);
+    if(imported)imported.meshes.forEach(m=>{if(!m.isDisposed())m.dispose(false,false);});
+   }
   }
  }
- // Keep procedural residents visible and fully interactive. The optional remote rigged-model swap is disabled until its cloned skeletons can be verified in-browser.
+ void upgradeResidentModels();
 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
@@ -415,7 +411,7 @@
    npc.socialCooldown=Math.max(0,(npc.socialCooldown||0)-dt);
    if(npc.wait>0){
     if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
-    npc.wait-=dt;npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;
+    npc.wait-=dt;if(!npc.rigged)npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;else npc.root.position.y=0;
     npc.legs.forEach(leg=>leg.rotation.x*=.82);
     npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
     if(npc.phone)npc.phone.isVisible=npc.action==='phone';
@@ -454,7 +450,7 @@
    npc.arms[0].rotation.z=-.12+Math.sin(now/210+npc.phase)*.025;npc.arms[1].rotation.z=.12-Math.sin(now/210+npc.phase)*.025;
    npc.hands[0].position.y=.73+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=.73-Math.sin(now/145+npc.phase)*.035;
    npc.feet[0].rotation.x=npc.legs[0].rotation.x*.35;npc.feet[1].rotation.x=npc.legs[1].rotation.x*.35;
-   npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;
+   if(!npc.rigged)npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;else npc.root.position.y=0;
   }
   // Residents who meet on the same street can stop for a brief, recurring conversation.
   // Friendship familiarity grows with repeat meetings and slightly lengthens later chats.
