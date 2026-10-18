@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AROUND THE WORLD — Human Model Test</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1018;color:#edf3fa;font:14px system-ui,sans-serif}
+#renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}
+#panel{position:fixed;left:12px;top:12px;max-width:min(420px,calc(100vw - 24px));padding:14px 16px;border:1px solid #ffffff20;border-radius:14px;background:#0b1524eF;box-shadow:0 10px 36px #0008;pointer-events:none}
+h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;color:#ffd27a;margin-bottom:8px}#details{color:#c6d2df;line-height:1.55;font-size:12px;white-space:pre-line}#hint{position:fixed;bottom:12px;left:12px;padding:8px 11px;border-radius:10px;background:#0b1524d9;color:#d8e4f1;font-size:12px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+<section id="panel"><h1>AROUND THE WORLD · HUMAN MODEL CHECK</h1><div id="status">Checking free character asset…</div><div id="details">Loading the rigged model without changing the live game.</div></section>
+<div id="hint">Drag to orbit · Pinch to zoom · Test page only; main game remains unchanged</div>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+<script>
+(async function(){
+ const status=document.getElementById('status'),details=document.getElementById('details'),canvas=document.getElementById('renderCanvas');
+ const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
+ const scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.035,.055,.085,1);
+ scene.imageProcessingConfiguration.toneMappingEnabled=true;
+ scene.imageProcessingConfiguration.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+ scene.imageProcessingConfiguration.exposure=1.05;scene.imageProcessingConfiguration.contrast=1.12;
+ const camera=new BABYLON.ArcRotateCamera('camera',-Math.PI/2,1.12,4.4,new BABYLON.Vector3(0,1,0),scene);
+ camera.attachControl(canvas,true);camera.lowerRadiusLimit=2.3;camera.upperRadiusLimit=9;camera.wheelPrecision=55;camera.panningSensibility=0;
+ const hemi=new BABYLON.HemisphericLight('ambient',new BABYLON.Vector3(0,1,0),scene);hemi.intensity=.85;
+ const key=new BABYLON.DirectionalLight('key',new BABYLON.Vector3(-.5,-1,.4),scene);key.position=new BABYLON.Vector3(3,6,-3);key.intensity=1.4;
+ const fill=new BABYLON.PointLight('fill',new BABYLON.Vector3(-3,2,2),scene);fill.intensity=22;fill.diffuse=new BABYLON.Color3(.45,.65,1);
+ const ground=BABYLON.MeshBuilder.CreateGround('ground',{width:14,height:14},scene);
+ const groundMat=new BABYLON.PBRMaterial('ground material',scene);groundMat.albedoColor=new BABYLON.Color3(.055,.075,.095);groundMat.roughness=.95;ground.material=groundMat;
+ const grid=BABYLON.MeshBuilder.CreateGround('grid',{width:14,height:14,subdivisions:14},scene);
+ const gridMat=new BABYLON.StandardMaterial('grid material',scene);gridMat.wireframe=true;gridMat.emissiveColor=new BABYLON.Color3(.12,.2,.28);gridMat.alpha=.18;grid.material=gridMat;grid.position.y=.006;
+ try{
+  const imported=await BABYLON.SceneLoader.ImportMeshAsync('', 'https://raw.githubusercontent.com/programasweights/avatar/main/public/assets/','character.glb',scene);
+  const modelRoot=imported.meshes.find(m=>!m.parent)||imported.meshes[0];
+  const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
+  if(!modelRoot||!geometry.length)throw new Error('The asset loaded but contains no visible mesh geometry.');
+  imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;m.checkCollisions=false;m.computeWorldMatrix(true);});
+  const bounds=modelRoot.getHierarchyBoundingVectors(true);
+  const height=bounds.max.y-bounds.min.y;
+  if(!Number.isFinite(height)||height<.3)throw new Error('Model bounds look invalid (height '+height+').');
+  const wrapper=new BABYLON.TransformNode('previewWrapper',scene);
+  modelRoot.parent=wrapper;
+  const scale=1.8/height;wrapper.scaling.setAll(scale);
+  wrapper.position.set(-((bounds.min.x+bounds.max.x)/2)*scale,-bounds.min.y*scale,-((bounds.min.z+bounds.max.z)/2)*scale);
+  wrapper.computeWorldMatrix(true);
+  imported.meshes.forEach(m=>{if(m.getTotalVertices&&m.getTotalVertices()>0)m.refreshBoundingInfo(true);});
+  camera.setTarget(new BABYLON.Vector3(0,.92,0));
+  status.textContent='Model loaded — inspect before game integration';
+  status.style.color='#8de6b0';
+  details.textContent='Visible meshes: '+geometry.length+'\nSkeletons: '+imported.skeletons.length+'\nAnimation groups: '+(imported.animationGroups||[]).length+'\nHeight before normalization: '+height.toFixed(3)+' units\n\nThis is a validation preview, not the live game. If the pose or body looks wrong, the model will not be enabled in the main game.';
+  console.info('Character preview validation',{meshes:geometry.length,skeletons:imported.skeletons.length,animationGroups:(imported.animationGroups||[]).length,height});
+ }catch(e){
+  status.textContent='Model validation failed — live game untouched';status.style.color='#ff9b9b';
+  details.textContent=String(e&&e.message||e)+'\n\nPossible causes: source file format, cross-origin loading, or asset structure. The model will not be added to the main game until this passes.';
+  console.error('Character preview validation failed',e);
+ }
+ engine.runRenderLoop(()=>scene.render());
+ window.addEventListener('resize',()=>engine.resize());
+})();
+</script>
+</body>
+</html>
