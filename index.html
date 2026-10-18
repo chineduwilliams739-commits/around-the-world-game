@@ -22,6 +22,7 @@
 <div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · LIVING CITY · PEDESTRIAN ROUTINES</span></div>
 <div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div><div id="environmentLabel">TIME: DAY · WEATHER: CLEAR</div></div>
 <div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
+<div style="position:fixed;right:10px;bottom:8px;z-index:2;color:#d8e2e9a8;font-size:10px;text-align:right;pointer-events:none">Character model: BabylonJS Assets · CC BY 4.0</div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
 <div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="interactButton">INTERACT</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
 
@@ -212,11 +213,62 @@
   residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
+ // Upgrade residents to a free, openly licensed, rigged 3D human model.
+ // BabylonJS Assets' Dude model is CC BY 4.0; see the visible attribution below.
+ // Procedural residents remain as a fallback if the external asset cannot load.
+ async function upgradeResidentModels(){
+  try{
+   const source=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
+   const sourceParts=source.meshes.filter(m=>m!==source.meshes[0] && m.getTotalVertices()>0);
+   if(!sourceParts.length||!source.skeletons.length)throw new Error('The character model did not contain a rigged mesh.');
+   for(const part of source.meshes)part.setEnabled(false);
+   residents.forEach((npc)=>{
+    const proceduralRoot=npc.root;
+    proceduralRoot.setEnabled(false);
+    const rigRoot=new B.TransformNode('residentRigRoot'+npc.index,scene);
+    rigRoot.position.copyFrom(proceduralRoot.position);
+    rigRoot.rotation.y=proceduralRoot.rotation.y;
+    const skeletonMap=new Map(),clonedSkeletons=[];
+    sourceParts.forEach((original,j)=>{
+     const clone=original.clone('residentRig'+npc.index+'Part'+j);
+     if(!clone)return;
+     clone.parent=rigRoot;
+     clone.position.copyFrom(original.position);
+     clone.rotation.copyFrom(original.rotation);
+     clone.scaling.copyFrom(original.scaling);
+     clone.isPickable=false;clone.checkCollisions=false;
+     if(original.skeleton){
+      let clonedSkeleton=skeletonMap.get(original.skeleton);
+      if(!clonedSkeleton){
+       clonedSkeleton=original.skeleton.clone('residentRig'+npc.index+'Skeleton');
+       skeletonMap.set(original.skeleton,clonedSkeleton);clonedSkeletons.push(clonedSkeleton);
+      }
+      clone.skeleton=clonedSkeleton;
+     }
+    });
+    rigRoot.scaling.setAll(.03*(.92+(npc.index%4)*.045));
+    npc.proceduralRoot=proceduralRoot;
+    npc.root=rigRoot;
+    npc.rigged=true;
+    npc.rigAnimations=clonedSkeletons.map((skeleton,i)=>scene.beginAnimation(skeleton,0,120,true,(npc.index%3===0?1.0:.86)+(i*.01)));
+    if(npc.phone){npc.phone.parent=rigRoot;npc.phone.isVisible=false;}
+    if(npc.bag)npc.bag.parent=rigRoot;
+   });
+   source.meshes.forEach(m=>{if(!m.isDisposed())m.dispose(false,false);});
+   console.info('Rigged resident models loaded:',residents.length);
+  }catch(error){
+   console.warn('Using procedural residents because the free rigged model could not load:',error);
+   residents.forEach(npc=>{if(npc.proceduralRoot)npc.proceduralRoot.setEnabled(true);});
+  }
+ }
+ upgradeResidentModels();
+
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20;
   for(const npc of residents){
    npc.lookPhase+=dt;
    if(npc.wait>0){
+    if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
     npc.wait-=dt;npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;
     npc.legs.forEach(leg=>leg.rotation.x*=.82);
     npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
@@ -228,6 +280,7 @@
     continue;
    }
    if(npc.phone)npc.phone.isVisible=false;npc.action='walk';
+   if(npc.rigAnimations)npc.rigAnimations.forEach(a=>{if(a.paused)a.restart();});
    const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
    if(dist<.35){
     npc.target=(npc.target+1)%npc.points.length;
