@@ -367,9 +367,11 @@
    let imported=null;
    try{
     imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
-    const modelRoot=imported.meshes[0];
+    // The Dude asset's hierarchy root is named "him"; meshes[0] is not
+    // guaranteed to be that root on every device/browser import path.
+    const modelRoot=imported.meshes.find(m=>m.name==="him")||imported.meshes.find(m=>!m.parent)||imported.meshes[0];
     const visibleMeshes=imported.meshes.filter(m=>m.getTotalVertices()>0);
-    if(!modelRoot||!visibleMeshes.length||!imported.skeletons.length)throw new Error("No complete rigged resident model was imported.");
+    if(!modelRoot||visibleMeshes.length<4||!imported.skeletons.length)throw new Error("No complete rigged resident hierarchy was imported.");
     // Keep the imported skinned hierarchy untouched; apply size and ground
     // alignment to its wrapper, matching the safer player-model setup.
     const rigRoot=new B.TransformNode("residentRigRoot"+npc.index,scene);
