@@ -274,6 +274,12 @@
    modelRoot.parent=player;
    modelRoot.position.set(0,0,0);
    modelRoot.scaling.scaleInPlace(.03);
+   // Align the imported rig's actual lowest point with the world floor.
+   // The asset pivot is not guaranteed to sit at the feet.
+   modelRoot.computeWorldMatrix(true);
+   const modelBounds=modelRoot.getHierarchyBoundingVectors(true);
+   modelRoot.position.y+=player.position.y-modelBounds.min.y;
+   modelRoot.computeWorldMatrix(true);
    modelRoot.isPickable=false;
    imported.meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isPickable=false;mesh.checkCollisions=false;});
    imported.skeletons.forEach(skeleton=>{
@@ -524,14 +530,14 @@
  function interact(){
    if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='vehicleExit'){
-     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=null;camera.alpha=car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
+     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x-Math.sin(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.cos(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=player;camera.alpha=-car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
    }else if(nearbyInteraction.action==='vehicleEnter'){
      activeVehicle=nearbyInteraction.vehicle;vehicleSpeed=0;activeVehicle.speedCurrent=0;
      if(!activeVehicle.driverGone){activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
       activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.65,0,activeVehicle.root.position.z);
       activeVehicle.driverRoot.rotation.y=activeVehicle.root.rotation.y;}
      player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);
-     camera.lockedTarget=null;camera.alpha=activeVehicle.root.rotation.y-Math.PI/2;camera.beta=1.08;camera.radius=12;
+     camera.lockedTarget=null;camera.target.set(activeVehicle.root.position.x,1.5,activeVehicle.root.position.z);camera.alpha=-activeVehicle.root.rotation.y-Math.PI/2;camera.beta=1.08;camera.radius=12;
      showToast('You pull the driver out. They scramble away as you take the wheel. Hold ▲ / W to accelerate; steer left or right.');return;
    }else if(nearbyInteraction.action==='resident'){
      const npc=nearbyInteraction.resident;
@@ -625,9 +631,16 @@
        if(!blocked(car.root.position.x,nz))car.root.position.z=nz;
        for(const wheel of car.wheels)wheel.rotation.x+=driveSpeed*dt*1.8;
      }
-     const wantedAlpha=car.root.rotation.y-Math.PI/2;
+     // Keep the camera target on the moving car and place the camera behind
+     // the car's actual heading (the same heading used by forward movement).
+     camera.target.x=car.root.position.x;
+     camera.target.y=1.5;
+     camera.target.z=car.root.position.z;
+     const wantedAlpha=-car.root.rotation.y-Math.PI/2;
      const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
-     camera.alpha+=alphaDelta*Math.min(1,dt*3.2);camera.beta+=(1.08-camera.beta)*Math.min(1,dt*2.5);camera.radius+=(12-camera.radius)*Math.min(1,dt*2.2);
+     camera.alpha+=alphaDelta*Math.min(1,dt*5.5);
+     camera.beta+=(1.08-camera.beta)*Math.min(1,dt*2.5);
+     camera.radius+=(12-camera.radius)*Math.min(1,dt*2.2);
    }else if(forward||strafe){
      // Move in the camera's horizontal facing direction, not a fixed world direction.
      const inputLength=Math.hypot(strafe,forward)||1;
@@ -646,7 +659,7 @@
      const running=!!(keys.ShiftLeft||keys.ShiftRight);
      walk+=dt*(running?15:10);
      const stride=running?.54:.42,armSwing=running?.36:.28;
-     player.position.y=Math.abs(Math.sin(walk))*(running?.065:.045);
+     player.position.y=playerRigLoaded?0:Math.abs(Math.sin(walk))*(running?.065:.045);
      if(playerRigLoaded)playerRigAnimatables.forEach(anim=>{if(anim.paused)anim.restart();});
      playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
      playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
