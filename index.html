@@ -305,7 +305,10 @@
    console.warn("Keeping the complete procedural player avatar because the rigged model failed:",error);
   }
  }
- void upgradePlayerModel();
+ // Temporarily keep the complete procedural avatar visible. The imported Dude rig
+ // currently renders as a floating head on some clients, so do not activate it
+ // until its full skinned body can be verified.
+ // void upgradePlayerModel();
 
  // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
