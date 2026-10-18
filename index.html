@@ -204,6 +204,7 @@
  [[9.5,58],[9.5,18],[9.5,-24],[9.5,-58]]
  ];
  const residents=[];
+ const residentNames=['Amara','Tobi','Zara','Kelechi','Maya','Chidi','Nneka','David'];
  function createResident(index,route){
   const root=new B.TransformNode('residentRoot'+index,scene);
   const outfit=npcMaterials[index%npcMaterials.length],skinMat=npcSkinMats[index%npcSkinMats.length],hairMat=npcHairMats[index%npcHairMats.length],trousers=npcPantsMats[index%npcPantsMats.length],shoes=npcShoeMats[index%npcShoeMats.length];
@@ -227,7 +228,7 @@
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
   root.position.set(route[0][0],0,route[0][1]);
-  residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0});
+  residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,name:residentNames[index],routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0,playerMeetings:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
  // Upgrade residents to a free, openly licensed, rigged 3D human model.
@@ -389,16 +390,41 @@
      const exitDist=Math.hypot(p.x+28,p.z+9.3);
      const deskDist=Math.hypot(p.x+28,p.z-0.1);
      if(exitDist<4.2){nearbyInteraction={name:'Exit Civic Hall',action:'exit',description:'Return to Central Avenue.'};best=exitDist;}
-     if(deskDist<3.2&&deskDist<best){nearbyInteraction={name:'Public Services Desk',action:'desk',description:'The public-service counter is ready for future permits, civic records, and resident services.'};}
+     if(deskDist<3.2&&deskDist<best){nearbyInteraction={name:'Public Services Desk',action:'desk',description:'The public-service counter is ready for future permits, civic records, and resident services.'};best=deskDist;}
    }else{
      for(const item of interactables){const d=Math.hypot(p.x-item.x,p.z-item.z);if(d<item.radius&&d<best){nearbyInteraction=item;best=d;}}
+   }
+   // Residents can be approached and spoken to directly, including on mobile.
+   let closestResident=null,closestDistance=2.45;
+   for(const npc of residents){
+     const d=Math.hypot(p.x-npc.root.position.x,p.z-npc.root.position.z);
+     if(d<closestDistance){closestDistance=d;closestResident=npc;}
+   }
+   if(closestResident&&(!nearbyInteraction||closestDistance<best)){
+     nearbyInteraction={name:'Talk to '+closestResident.name,action:'resident',resident:closestResident};
    }
    interactionHint.style.display=nearbyInteraction?'block':'none';
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
  function interact(){
-   if(!nearbyInteraction){showToast('Approach Civic Hall, Green Park, or the Downtown Shop');return;}
-   if(nearbyInteraction.action==='enter'){
+   if(!nearbyInteraction){showToast('Approach a resident or visit Civic Hall, Green Park, or the Downtown Shop');return;}
+   if(nearbyInteraction.action==='resident'){
+     const npc=nearbyInteraction.resident;
+     npc.playerMeetings=(npc.playerMeetings||0)+1;
+     npc.wait=Math.max(npc.wait||0,3.4);
+     npc.action='chat';
+     if(npc.phone)npc.phone.isVisible=false;
+     npc.root.rotation.y=Math.atan2(player.position.x-npc.root.position.x,player.position.z-npc.root.position.z);
+     player.rotation.y=Math.atan2(npc.root.position.x-player.position.x,npc.root.position.z-player.position.z);
+     const seconds=performance.now()/1000,hour=Math.floor((seconds%1440)/60);
+     const greeting=npc.playerMeetings===1
+       ?['Hi there! I’m '+npc.name+'. Nice to meet you.','Hello! How are you enjoying New Horizon City?','Hey! It’s a lovely day to explore the city.'][npc.index%3]
+       :npc.playerMeetings<4
+         ?['Good to see you again!','Hey, we’ve met before. How have you been?','Hello again! What brings you around here?'][npc.index%3]
+         :['There you are, my friend!','Always nice running into you again.','Good to see a familiar face!'][npc.index%3];
+     const timeNote=hour<6||hour>=20?' It’s getting late.':hour>=6&&hour<10?' I’m on my morning route.':hour>=17&&hour<21?' I’m winding down for the evening.':'';
+     showToast(npc.name+': “'+greeting+timeNote+'”');
+   }else if(nearbyInteraction.action==='enter'){
      insideCivicHall=true;player.position.set(-28,0,-4.5);camera.alpha=-Math.PI/2;
      showToast('Entered Civic Hall · Explore the lobby and approach the service desk');
    }else if(nearbyInteraction.action==='exit'){
