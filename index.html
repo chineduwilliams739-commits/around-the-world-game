@@ -295,6 +295,7 @@
     npc.routeKey=routeKey;
    }
    npc.lookPhase+=dt;
+   npc.socialCooldown=Math.max(0,(npc.socialCooldown||0)-dt);
    if(npc.wait>0){
     if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
     npc.wait-=dt;npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;
@@ -334,6 +335,27 @@
    npc.hands[0].position.y=.73+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=.73-Math.sin(now/145+npc.phase)*.035;
    npc.feet[0].rotation.x=npc.legs[0].rotation.x*.35;npc.feet[1].rotation.x=npc.legs[1].rotation.x*.35;
    npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;
+  }
+  // Residents who meet on the same street can stop for a brief, recurring conversation.
+  // Friendship familiarity grows with repeat meetings and slightly lengthens later chats.
+  for(let i=0;i<residents.length;i++){
+   const a=residents[i];
+   if(a.wait>0||a.socialCooldown>0)continue;
+   for(let j=i+1;j<residents.length;j++){
+    const b=residents[j];
+    if(b.wait>0||b.socialCooldown>0)continue;
+    const dx=b.root.position.x-a.root.position.x,dz=b.root.position.z-a.root.position.z,d=Math.hypot(dx,dz);
+    if(d>1.65)continue;
+    a.relationships=a.relationships||{};b.relationships=b.relationships||{};
+    const familiarity=(a.relationships[b.index]||0)+1;
+    a.relationships[b.index]=familiarity;b.relationships[a.index]=familiarity;
+    a.action='chat';b.action='chat';
+    a.wait=3.1+Math.min(2.4,familiarity*.25);b.wait=a.wait;
+    a.socialCooldown=18;b.socialCooldown=18;
+    a.root.rotation.y=Math.atan2(dx,dz);b.root.rotation.y=Math.atan2(-dx,-dz);
+    if(a.phone)a.phone.isVisible=false;if(b.phone)b.phone.isVisible=false;
+    break;
+   }
   }
  }
  camera.lockedTarget=player;camera.target=new B.Vector3(0,1.2,12);
