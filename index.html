@@ -7,6 +7,11 @@
 <title>AROUND THE WORLD — New Horizon City</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#f5f7fa}#renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}.hud{position:fixed;z-index:2;pointer-events:none}.brand{top:16px;left:16px;max-width:calc(100vw - 32px);padding:12px 15px;border:1px solid #ffffff22;border-radius:15px;background:#101820bb;backdrop-filter:blur(12px)}.brand strong{display:block;letter-spacing:.12em;font-size:clamp(13px,2.5vw,18px)}.brand span{display:block;margin-top:4px;color:#b7c9d5;font-size:12px}.status{top:16px;right:16px;text-align:right;padding:10px 12px;border:1px solid #ffffff22;border-radius:14px;background:#101820bb;font-size:12px;color:#c8d6df}.status b{color:#9ee6bf}.help{left:16px;bottom:16px;max-width:330px;padding:11px 13px;border:1px solid #ffffff20;border-radius:13px;background:#101820b8;color:#d8e2e9;font-size:12px;line-height:1.5}.mobile{display:none;position:fixed;z-index:20;left:12px;right:12px;bottom:14px;align-items:flex-end;justify-content:space-between;gap:12px;touch-action:none;pointer-events:none}.pad,.controls{pointer-events:auto;touch-action:none}.pad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:6px}.controls{display:flex;flex-direction:column;gap:8px;justify-content:end}.mobile button{border:2px solid #ffffff65;background:#10212fe8;color:#fff;border-radius:15px;font-size:22px;touch-action:none;box-shadow:0 4px 18px #0008;min-width:48px;min-height:48px;user-select:none;-webkit-user-select:none}.mobile button:active,.mobile button.active{background:#277a69}.mobile .action{width:72px;height:52px;font-size:11px;font-weight:800}.interaction-hint{position:fixed;z-index:3;left:50%;bottom:24px;transform:translateX(-50%);display:none;padding:10px 14px;border:1px solid #ffffff35;border-radius:12px;background:#101820e8;color:#fff;font-size:13px;text-align:center;white-space:nowrap;max-width:90vw}.pad [data-key=KeyW]{grid-column:2}.pad [data-key=KeyA]{grid-column:1;grid-row:2}.pad [data-key=KeyS]{grid-column:2;grid-row:2}.pad [data-key=KeyD]{grid-column:3;grid-row:2}.rotate-overlay{display:none;position:fixed;inset:0;z-index:50;background:#0c151ef5;color:#fff;align-items:center;justify-content:center;text-align:center;padding:28px}.rotate-overlay .card{max-width:300px}.rotate-overlay .phone{font-size:54px;margin-bottom:12px}.rotate-overlay strong{font-size:21px}.rotate-overlay p{color:#c3d0d8;line-height:1.5;font-size:14px}@media(orientation:portrait) and (max-width:900px){.rotate-overlay{display:flex}.mobile{display:flex}}.toast{position:fixed;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);padding:13px 17px;border-radius:12px;background:#101820e8;border:1px solid #ffffff25;color:#fff;text-align:center;max-width:85vw;display:none}.loading{position:fixed;inset:0;display:grid;place-items:center;background:#101820;z-index:10}.loading div{text-align:center}.loading b{letter-spacing:.18em}.loading span{display:block;color:#b7c9d5;margin-top:9px;font-size:13px}@media(max-width:700px){.mobile{display:flex}.help{bottom:14px;left:12px;max-width:42vw;font-size:10px}.status{top:80px;right:12px}.brand{top:10px;left:10px}.brand span{font-size:10px}.pad{grid-template-columns:repeat(3,clamp(42px,10vw,56px));grid-template-rows:repeat(2,clamp(42px,10vw,56px))}.mobile .action{width:clamp(60px,15vw,76px);height:clamp(46px,11vw,54px)}}@media(orientation:landscape) and (max-height:600px){.mobile{display:flex!important;bottom:8px;left:10px;right:10px}.pad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px}.mobile .action{height:42px}.brand{top:8px;left:10px;padding:8px 10px}.status{top:8px;right:10px;padding:7px 9px}.help{display:none}}
+
+.map-toggle{position:fixed;z-index:8;top:116px;right:16px;pointer-events:auto;border:1px solid #ffffff45;border-radius:11px;background:#10212fe8;color:#fff;padding:10px 14px;font-weight:800;letter-spacing:.04em;box-shadow:0 4px 18px #0005}
+.map-panel{display:none;position:fixed;z-index:7;top:160px;right:16px;width:min(310px,calc(100vw - 24px));padding:12px;border:1px solid #ffffff35;border-radius:16px;background:#101820ed;backdrop-filter:blur(14px);box-shadow:0 12px 35px #0008;pointer-events:auto}
+.map-panel.open{display:block}.map-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.map-head strong{font-size:13px;letter-spacing:.08em}.map-head button,.map-destinations button{border:1px solid #ffffff2c;border-radius:9px;background:#243744;color:#fff;padding:7px 9px;font-size:12px}.map-panel p{margin:5px 0 8px;color:#b8c9d3;font-size:11px;line-height:1.4}.city-map{display:block;width:100%;height:auto;border-radius:10px;background:#172b31;border:1px solid #ffffff20}.map-destinations{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}.map-destinations button{text-align:left;display:flex;align-items:center;gap:8px}.map-destinations button span{display:inline-block;width:9px;height:9px;border-radius:50%;background:#f3c969;flex:none}.map-destinations button:nth-child(2) span{background:#79d79d}.map-destinations button:nth-child(3) span{background:#7cc8ef}.map-destinations button.selected{outline:2px solid #e8c56f;background:#314655}.map-guidance{margin-top:8px;padding:9px;border-radius:9px;background:#ffffff0d;color:#f4e1a6;font-size:12px;line-height:1.4}.map-player{fill:#ff625d;stroke:#fff;stroke-width:2}.map-pin{cursor:pointer}.map-pin:focus{outline:none;stroke:#fff;stroke-width:3}
+@media(max-width:700px){.map-toggle{top:136px;right:12px;padding:8px 11px}.map-panel{top:178px;right:12px;width:min(290px,calc(100vw - 24px));max-height:calc(100vh - 195px);overflow:auto}.help{max-width:40vw}.status{max-width:44vw}}
 </style>
 </head>
 <body>
@@ -17,6 +22,32 @@
 <div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
 <div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="interactButton">INTERACT</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
+
+<button class="map-toggle" id="mapToggle" aria-expanded="false">🗺 CITY MAP</button>
+<section class="map-panel" id="mapPanel" aria-label="New Horizon City map">
+ <div class="map-head"><strong>NEW HORIZON CITY</strong><button id="closeMap" aria-label="Close map">CLOSE ✕</button></div>
+ <p>Tap a marked place to set your destination. The red dot shows your current position.</p>
+ <svg class="city-map" viewBox="0 0 280 280" role="img" aria-label="Map showing Civic Hall, Green Park, Downtown Shop, Central Avenue and Cross Street">
+  <rect x="0" y="0" width="280" height="280" rx="10" fill="#203b3d"/>
+  <path d="M20 20H260V260H20Z" fill="#294b43" stroke="#6b897b" stroke-width="1"/>
+  <path d="M140 20V260 M20 140H260" stroke="#39454c" stroke-width="28"/>
+  <path d="M140 20V260 M20 140H260" stroke="#b5b9b4" stroke-width="1.5" stroke-dasharray="5 5"/>
+  <path d="M20 92H260 M20 190H260 M75 20V260 M210 20V260" stroke="#7a9288" stroke-width="1" stroke-dasharray="3 5" opacity=".6"/>
+  <rect x="37" y="45" width="34" height="25" rx="3" fill="#a96852"/><rect x="177" y="40" width="43" height="30" rx="3" fill="#c9c2b4"/>
+  <rect x="174" y="204" width="45" height="27" rx="3" fill="#53616b"/><rect x="35" y="208" width="30" height="27" rx="3" fill="#e3d7c3"/>
+  <rect x="29" y="177" width="48" height="56" rx="4" fill="#397654" stroke="#79d79d" stroke-width="1.5"/>
+  <text x="53" y="194" font-size="8" fill="#fff" text-anchor="middle">GREEN</text><text x="53" y="204" font-size="8" fill="#fff" text-anchor="middle">PARK</text>
+  <text x="149" y="34" font-size="8" fill="#e3e9e4">N ↑</text>
+  <text x="149" y="127" font-size="8" fill="#e0e4e2">CENTRAL AVE</text>
+  <text x="93" y="132" font-size="8" fill="#e0e4e2" transform="rotate(-90 93 132)">CROSS STREET</text>
+  <g id="mapPinCivic" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Civic Hall"><circle cx="103" cy="123" r="8" fill="#f3c969" stroke="#fff" stroke-width="1.5"/><text x="103" y="126" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">C</text><text x="103" y="111" font-size="9" fill="#fff" text-anchor="middle">CIVIC HALL</text></g>
+  <g id="mapPinPark" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Green Park"><circle cx="53" cy="205" r="7" fill="#79d79d" stroke="#fff" stroke-width="1.5"/><text x="53" y="208" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">P</text></g>
+  <g id="mapPinShop" class="map-pin" tabindex="0" role="button" aria-label="Set destination: Downtown Shop"><circle cx="179" cy="130" r="7" fill="#7cc8ef" stroke="#fff" stroke-width="1.5"/><text x="179" y="133" font-size="8" fill="#17212a" text-anchor="middle" font-weight="bold">S</text><text x="201" y="120" font-size="8" fill="#fff" text-anchor="middle">SHOP</text></g>
+  <circle id="mapPlayerDot" class="map-player" cx="140" cy="156" r="5"/>
+ </svg>
+ <div class="map-destinations"><button data-destination="civic"><span></span>Civic Hall — public services</button><button data-destination="park"><span></span>Green Park — park & trees</button><button data-destination="shop"><span></span>Downtown Shop — storefront</button></div>
+ <div class="map-guidance" id="mapGuidance">Destination: none selected. Choose a marked place above.</div>
+</section>
 <div class="interaction-hint" id="interactionHint">Press E to interact</div><div class="toast" id="toast"></div>
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script>
@@ -114,6 +145,21 @@
    {name:'Green Park',x:-42,z:20,radius:5,description:'Green Park is a public place to relax and meet other residents. Social activities and NPC routines will be added in a later stage.',action:'info'},
    {name:'Downtown Shop',x:29,z:-7.5,radius:4.5,description:'This storefront is reserved for the future shopping system, including prices, inventory, and player-owned businesses.',action:'info'}
  ];
+
+ const mapPanel=document.getElementById('mapPanel'), mapToggle=document.getElementById('mapToggle'), mapGuidance=document.getElementById('mapGuidance'), mapPlayerDot=document.getElementById('mapPlayerDot');
+ const destinations={
+   civic:{name:'Civic Hall',x:-28,z:-12.3,pin:'mapPinCivic'},
+   park:{name:'Green Park',x:-42,z:35,pin:'mapPinPark'},
+   shop:{name:'Downtown Shop',x:29,z:-7.5,pin:'mapPinShop'}
+ };
+ let selectedDestination=null;
+ function toggleMap(force){const open=typeof force==='boolean'?force:!mapPanel.classList.contains('open');mapPanel.classList.toggle('open',open);mapToggle.setAttribute('aria-expanded',String(open));mapToggle.textContent=open?'✕ CLOSE MAP':'🗺 CITY MAP';}
+ mapToggle.addEventListener('click',()=>toggleMap());document.getElementById('closeMap').addEventListener('click',()=>toggleMap(false));
+ function setDestination(key){selectedDestination=destinations[key];document.querySelectorAll('[data-destination]').forEach(b=>b.classList.toggle('selected',b.dataset.destination===key));if(selectedDestination){const d=Math.hypot(player.position.x-selectedDestination.x,player.position.z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away. Follow the map and move toward its marker.';showToast('Destination set: '+selectedDestination.name);}}
+ document.querySelectorAll('[data-destination]').forEach(b=>b.addEventListener('click',()=>setDestination(b.dataset.destination)));
+ [['mapPinCivic','civic'],['mapPinPark','park'],['mapPinShop','shop']].forEach(([id,key])=>{const el=document.getElementById(id);el.addEventListener('click',()=>setDestination(key));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setDestination(key);}})});
+ function updateMap(){const x=player.position.x,z=player.position.z;mapPlayerDot.setAttribute('cx',String(20+(x+90)/180*240));mapPlayerDot.setAttribute('cy',String(20+(z+90)/180*240));if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
+
  let insideCivicHall=false, nearbyInteraction=null;
  function refreshInteraction(){
    const p=player.position;
@@ -199,7 +245,7 @@
    }else{player.position.y=0}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   refreshInteraction();
+   refreshInteraction();updateMap();
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
