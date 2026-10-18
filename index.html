@@ -210,7 +210,7 @@
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
   root.position.set(route[0][0],0,route[0][1]);
-  residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0});
+  residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
  // Upgrade residents to a free, openly licensed, rigged 3D human model.
@@ -265,7 +265,7 @@
  upgradeResidentModels();
 
  function updateResidents(dt,now){
-  const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20;
+  const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
   for(const npc of residents){
    npc.lookPhase+=dt;
    if(npc.wait>0){
@@ -285,12 +285,22 @@
    const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
    if(dist<.35){
     npc.target=(npc.target+1)%npc.points.length;
-    const actions=night?['look','phone','idle','look']:['look','phone','chat','wave','idle'];
-    npc.action=actions[(npc.index+npc.target)%actions.length];
-    npc.wait=npc.action==='chat'?2.8:npc.action==='wave'?1.5:npc.action==='phone'?2.5:1.2+((npc.index+npc.target)%3)*.65;
-    if(npc.index===0&&hour>=7&&hour<10)npc.wait*=.65;continue;
+    let actions;
+    if(night)actions=npc.routine==='park'?['look','idle','look']:['look','phone','idle','look'];
+    else if(rushHour&&npc.routine==='commuter')actions=['look','idle','phone'];
+    else if(daytime&&npc.routine==='park')actions=['idle','look','chat'];
+    else if(evening&&npc.routine==='social')actions=['chat','wave','look'];
+    else if(npc.routine==='errands')actions=['phone','look','idle','chat'];
+    else actions=['look','phone','chat','wave','idle'];
+    npc.action=actions[(npc.index+npc.target+Math.floor(hour/3))%actions.length];
+    const baseWait=npc.action==='chat'?(evening?4:2.8):npc.action==='wave'?1.8:npc.action==='phone'?(rushHour?1.3:2.8):npc.action==='idle'?(daytime&&npc.routine==='park'?4.5:2):1.2;
+    npc.wait=baseWait+((npc.index+npc.target)%3)*.45;
+    if(rushHour&&npc.routine==='commuter')npc.wait*=.55;
+    if(night)npc.wait*=1.5;
+    continue;
    }
-   const speed=(npc.index%3===0?1.05:.78)*(night?.78:1)*(npc.index===4||npc.index===5?.72:1),step=Math.min(dist,speed*dt);
+   const routinePace=npc.routine==='commuter'&&rushHour?1.22:(npc.routine==='park'&&daytime?.78:(npc.routine==='social'&&evening?.88:1));
+   const speed=(npc.index%3===0?1.05:.78)*(night?.62:1)*routinePace*(npc.routine==='park'?.72:1),step=Math.min(dist,speed*dt);
    npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;npc.root.rotation.y=Math.atan2(dx,dz);
    const swing=Math.sin(now/145+npc.phase)*.28;
    npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;npc.arms[0].rotation.x=-swing*.72;npc.arms[1].rotation.x=swing*.72;
