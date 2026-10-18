@@ -109,7 +109,7 @@
  const trafficLights=mat('traffic headlamps','#fff0c7',.25);trafficLights.emissiveColor=new B.Color3(.35,.29,.16);
  function createTrafficCar(index,config){
   const root=new B.TransformNode('traffic car '+index,scene);
-  root.position.set(config.x,.04,config.z);root.rotation.y=config.direction>0?0:Math.PI;
+  root.position.set(config.x,.04,config.z);root.rotation.y=config.direction>0?0:Math.PI;root.scaling.setAll(1.35);
   const body=B.MeshBuilder.CreateBox('traffic body '+index,{width:1.65,height:.62,depth:3.25},scene);body.parent=root;body.position.y=.55;body.material=trafficPaints[index%trafficPaints.length];
   const hood=B.MeshBuilder.CreateBox('traffic bonnet '+index,{width:1.48,height:.15,depth:.78},scene);hood.parent=root;hood.position.set(0,.86,1.02);hood.material=body.material;
   const cabin=B.MeshBuilder.CreateBox('traffic cabin '+index,{width:1.28,height:.62,depth:1.48},scene);cabin.parent=root;cabin.position.set(0,1.12,-.12);cabin.material=trafficGlass;
@@ -127,13 +127,14 @@
   return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x};
  }
  const traffic=[
-  createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:5.2}),
-  createTrafficCar(1,{x:4.4,z:62,direction:-1,speed:5.8}),
-  createTrafficCar(2,{x:-4.4,z:5,direction:1,speed:4.4}),
-  createTrafficCar(3,{x:4.4,z:-22,direction:-1,speed:4.9})
+  createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:9.2}),
+  createTrafficCar(1,{x:4.4,z:62,direction:-1,speed:10.1}),
+  createTrafficCar(2,{x:-4.4,z:5,direction:1,speed:8.1}),
+  createTrafficCar(3,{x:4.4,z:-22,direction:-1,speed:8.7})
  ];
  function updateTraffic(dt){
   for(const car of traffic){
+   if(car===activeVehicle)continue;
    car.root.position.z+=car.direction*car.speed*dt;
    if(car.root.position.z>86)car.root.position.z=-86;
    else if(car.root.position.z< -86)car.root.position.z=86;
@@ -424,8 +425,9 @@
  [['mapPinCivic','civic'],['mapPinPark','park'],['mapPinShop','shop']].forEach(([id,key])=>{const el=document.getElementById(id);el.addEventListener('click',()=>setDestination(key));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setDestination(key);}})});
  function updateMap(){const x=player.position.x,z=player.position.z,cx=20+(x+90)/180*240,cy=20+(z+90)/180*240;mapPlayerMarker.setAttribute('transform','translate('+cx+' '+cy+') rotate('+(180-player.rotation.y*180/Math.PI)+')');if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
 
- let insideCivicHall=false, nearbyInteraction=null;
+ let insideCivicHall=false, nearbyInteraction=null, activeVehicle=null;
  function refreshInteraction(){
+   if(activeVehicle){nearbyInteraction={name:'Exit vehicle',action:'vehicleExit'};interactionHint.style.display='block';interactionHint.textContent='E / INTERACT · Exit vehicle';return;}
    const p=player.position;
    nearbyInteraction=null;let best=Infinity;
    if(insideCivicHall){
@@ -443,14 +445,21 @@
      if(d<closestDistance){closestDistance=d;closestResident=npc;}
    }
    if(closestResident&&(!nearbyInteraction||closestDistance<best)){
-     nearbyInteraction={name:'Talk to '+closestResident.name,action:'resident',resident:closestResident};
+     nearbyInteraction={name:'Talk to '+closestResident.name,action:'resident',resident:closestResident};best=closestDistance;
    }
+   let closestCar=null,closestCarDistance=5.5;
+   for(const car of traffic){if(car===activeVehicle)continue;const d=Math.hypot(p.x-car.root.position.x,p.z-car.root.position.z);if(d<closestCarDistance){closestCarDistance=d;closestCar=car;}}
+   if(closestCar&&closestCarDistance<best){nearbyInteraction={name:'Enter car',action:'vehicleEnter',vehicle:closestCar};}
    interactionHint.style.display=nearbyInteraction?'block':'none';
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
  function interact(){
-   if(!nearbyInteraction){showToast('Approach a resident or visit Civic Hall, Green Park, or the Downtown Shop');return;}
-   if(nearbyInteraction.action==='resident'){
+   if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
+   if(nearbyInteraction.action==='vehicleExit'){
+     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;showToast('You stepped out of the car. Approach another vehicle to drive.');return;
+   }else if(nearbyInteraction.action==='vehicleEnter'){
+     activeVehicle=nearbyInteraction.vehicle;player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);camera.alpha=-Math.PI/2;camera.beta=1.12;showToast('You got into the car. Use W/S or ↑/↓ to drive, A/D or ←/→ to steer, Shift for a speed boost. Press E or INTERACT to exit.');return;
+   }else if(nearbyInteraction.action==='resident'){
      const npc=nearbyInteraction.resident;
      npc.playerMeetings=(npc.playerMeetings||0)+1;
      npc.wait=Math.max(npc.wait||0,3.4);
@@ -524,7 +533,19 @@
    const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
    const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
    const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
-   if(forward||strafe){
+   if(activeVehicle){
+     const car=activeVehicle;
+     if(strafe)car.root.rotation.y+=strafe*dt*(forward?1.15:1.65);
+     if(forward){
+       const driveSpeed=forward>0?(keys.ShiftLeft||keys.ShiftRight?25:16):-7.5;
+       const dx=Math.sin(car.root.rotation.y)*driveSpeed*dt,dz=Math.cos(car.root.rotation.y)*driveSpeed*dt;
+       const nx=B.Scalar.Clamp(car.root.position.x+dx,-82,82),nz=B.Scalar.Clamp(car.root.position.z+dz,-82,82);
+       const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW+1.05&&Math.abs(z-o.z)<o.halfD+1.7);
+       if(!blocked(nx,car.root.position.z))car.root.position.x=nx;
+       if(!blocked(car.root.position.x,nz))car.root.position.z=nz;
+       for(const wheel of car.wheels)wheel.rotation.x+=driveSpeed*dt*1.8;
+     }
+   }else if(forward||strafe){
      // Move in the camera's horizontal facing direction, not a fixed world direction.
      const inputLength=Math.hypot(strafe,forward)||1;
      const side=strafe/inputLength, ahead=forward/inputLength;
@@ -549,7 +570,7 @@
      playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
    }else{player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
-   camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+   camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.55,0)):player.position.add(new B.Vector3(0,1.2,0)));
    updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);refreshInteraction();updateMap();
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
