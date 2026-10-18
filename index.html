@@ -167,55 +167,84 @@
    const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=clothes;
  }
 
- // Ambient residents: lightweight pedestrians follow repeating sidewalk/park routes.
+ // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
  const npcMaterials=npcPalette.map((c,i)=>mat('resident outfit '+i,c));
  const npcSkinMats=['#b77d5b','#80543e','#d0a17c','#9b684e'].map((c,i)=>mat('resident skin '+i,c));
  const npcHairMats=['#25272b','#392b25','#b8a071','#343d45'].map((c,i)=>mat('resident hair '+i,c));
+ const npcPantsMats=['#293643','#45454b','#343e35','#55443b'].map((c,i)=>mat('resident trousers '+i,c));
+ const npcShoeMats=['#24272a','#57463b','#ded9cf'].map((c,i)=>mat('resident shoes '+i,c));
+ const eyeMat=mat('resident eyes','#f1e8d8',.45),pupilMat=mat('resident pupils','#292b30',.4),phoneMat=mat('resident phone','#20262d',.3),bagMat=mat('resident bags','#5c5143');
  const residentRoutes=[
-   [[-9.5,-68],[-9.5,-34],[-9.5,5],[-9.5,44],[-9.5,68]],
-   [[9.5,65],[9.5,30],[9.5,-8],[9.5,-42],[9.5,-67]],
-   [[-13,-7.7],[-6,-7.7],[6,-7.7],[13,-7.7]],
-   [[13,7.7],[6,7.7],[-6,7.7],[-13,7.7]],
-   [[-50,28],[-35,28],[-35,42],[-50,42],[-50,28]],
-   [[-46,25],[-34,34],[-46,44],[-53,35],[-46,25]],
-   [[-9.5,-58],[-9.5,-18],[-9.5,24],[-9.5,58]],
-   [[9.5,58],[9.5,18],[9.5,-24],[9.5,-58]]
+ [[-9.5,-68],[-9.5,-34],[-9.5,5],[-9.5,44],[-9.5,68]],
+ [[9.5,65],[9.5,30],[9.5,-8],[9.5,-42],[9.5,-67]],
+ [[-13,-7.7],[-6,-7.7],[6,-7.7],[13,-7.7]],
+ [[13,7.7],[6,7.7],[-6,7.7],[-13,7.7]],
+ [[-50,28],[-35,28],[-35,42],[-50,42],[-50,28]],
+ [[-46,25],[-34,34],[-46,44],[-53,35],[-46,25]],
+ [[-9.5,-58],[-9.5,-18],[-9.5,24],[-9.5,58]],
+ [[9.5,58],[9.5,18],[9.5,-24],[9.5,-58]]
  ];
  const residents=[];
  function createResident(index,route){
-   const root=new B.TransformNode('residentRoot'+index,scene);
-   const outfit=npcMaterials[index%npcMaterials.length],skinMat=npcSkinMats[index%npcSkinMats.length],hairMat=npcHairMats[index%npcHairMats.length];
-   const torso=B.MeshBuilder.CreateCapsule('residentBody'+index,{height:1.2,radius:.29},scene);torso.parent=root;torso.position.y=.96;torso.material=outfit;
-   const headMesh=B.MeshBuilder.CreateSphere('residentHead'+index,{diameter:.48,segments:8},scene);headMesh.parent=root;headMesh.position.y=1.78;headMesh.material=skinMat;
-   const hairMesh=B.MeshBuilder.CreateSphere('residentHair'+index,{diameter:.5,segments:7},scene);hairMesh.parent=root;hairMesh.position.y=1.96;hairMesh.scaling.y=.42;hairMesh.material=hairMat;
-   const legs=[];
-   for(const side of [-1,1]){
-     const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.68,radius:.12},scene);leg.parent=root;leg.position.set(side*.15,.35,0);leg.material=pants;legs.push(leg);
-   }
-   root.position.set(route[0][0],0,route[0][1]);
-   const points=route.map(p=>new B.Vector3(p[0],0,p[1]));
-   residents.push({root,points,index,target:1,wait:(index%4)*1.8,phase:index*.8,legs});
+  const root=new B.TransformNode('residentRoot'+index,scene);
+  const outfit=npcMaterials[index%npcMaterials.length],skinMat=npcSkinMats[index%npcSkinMats.length],hairMat=npcHairMats[index%npcHairMats.length],trousers=npcPantsMats[index%npcPantsMats.length],shoes=npcShoeMats[index%npcShoeMats.length];
+  const torso=B.MeshBuilder.CreateCapsule('residentBody'+index,{height:1.08,radius:.29,tessellation:10},scene);torso.parent=root;torso.position.y=1.02;torso.material=outfit;
+  const neck=B.MeshBuilder.CreateCylinder('residentNeck'+index,{height:.18,diameter:.19,tessellation:8},scene);neck.parent=root;neck.position.y=1.63;neck.material=skinMat;
+  const headMesh=B.MeshBuilder.CreateSphere('residentHead'+index,{diameter:.49,segments:12},scene);headMesh.parent=root;headMesh.position.y=1.83;headMesh.material=skinMat;
+  const hairMesh=B.MeshBuilder.CreateSphere('residentHair'+index,{diameter:.52,segments:10},scene);hairMesh.parent=root;hairMesh.position.y=2.02;hairMesh.scaling.y=.42;hairMesh.material=hairMat;
+  const fringe=B.MeshBuilder.CreateSphere('residentFringe'+index,{diameter:.29,segments:8},scene);fringe.parent=root;fringe.position.set(0,1.99,.19);fringe.scaling.set(1,.42,.45);fringe.material=hairMat;
+  const nose=B.MeshBuilder.CreateSphere('residentNose'+index,{diameter:.09,segments:6},scene);nose.parent=root;nose.position.set(0,1.79,.245);nose.scaling.set(.72,1,1);nose.material=skinMat;
+  for(const side of [-1,1]){
+   const eye=B.MeshBuilder.CreateSphere('residentEye'+index+'_'+side,{diameter:.075,segments:6},scene);eye.parent=root;eye.position.set(side*.105,1.86,.218);eye.scaling.z=.4;eye.material=eyeMat;
+   const pupil=B.MeshBuilder.CreateSphere('residentPupil'+index+'_'+side,{diameter:.035,segments:6},scene);pupil.parent=root;pupil.position.set(side*.105,1.86,.244);pupil.scaling.z=.4;pupil.material=pupilMat;
+  }
+  const legs=[],feet=[],arms=[],hands=[];
+  for(const side of [-1,1]){
+   const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.72,radius:.125,tessellation:8},scene);leg.parent=root;leg.position.set(side*.15,.39,0);leg.material=trousers;legs.push(leg);
+   const foot=B.MeshBuilder.CreateBox('residentFoot'+index+'_'+side,{width:.2,height:.13,depth:.34},scene);foot.parent=root;foot.position.set(side*.15,.12,.08);foot.material=shoes;feet.push(foot);
+   const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:8},scene);arm.parent=root;arm.position.set(side*.39,1.12,0);arm.rotation.z=side*-.12;arm.material=outfit;arms.push(arm);
+   const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:7},scene);hand.parent=root;hand.position.set(side*.4,.73,.015);hand.material=skinMat;hands.push(hand);
+  }
+  let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
+  let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
+  root.position.set(route[0][0],0,route[0][1]);
+  residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
  function updateResidents(dt,now){
-   for(const npc of residents){
-     if(npc.wait>0){npc.wait-=dt;continue;}
-     const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
-     if(dist<.35){
-       npc.target=(npc.target+1)%npc.points.length;
-       npc.wait=(npc.target%2===0)?1.1:0.15;
-       continue;
-     }
-     const speed=(npc.index%3===0?1.05:0.78),step=Math.min(dist,speed*dt);
-     npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;
-     npc.root.rotation.y=Math.atan2(dx,dz);
-     const swing=Math.sin(now/170+npc.phase)*.09;
-     npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;
-     npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.025;
+  const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20;
+  for(const npc of residents){
+   npc.lookPhase+=dt;
+   if(npc.wait>0){
+    npc.wait-=dt;npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;
+    npc.legs.forEach(leg=>leg.rotation.x*=.82);
+    npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
+    if(npc.phone)npc.phone.isVisible=npc.action==='phone';
+    if(npc.action==='phone'&&npc.phone){npc.arms[0].rotation.x=-.8;npc.arms[0].rotation.z=-.45;npc.root.rotation.y+=Math.sin(npc.lookPhase*1.3)*dt*.12;}
+    else if(npc.action==='look'){npc.root.rotation.y+=Math.sin(npc.lookPhase*1.1+npc.phase)*dt*.45;}
+    else if(npc.action==='chat'){npc.arms.forEach((arm,i)=>arm.rotation.x=Math.sin(npc.lookPhase*4+i)*.22);npc.root.rotation.y+=Math.sin(npc.lookPhase*2)*dt*.12;}
+    else if(npc.action==='wave'){npc.arms[1].rotation.z=.95+Math.sin(npc.lookPhase*8)*.2;npc.arms[1].rotation.x=-.35;}
+    continue;
    }
+   if(npc.phone)npc.phone.isVisible=false;npc.action='walk';
+   const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
+   if(dist<.35){
+    npc.target=(npc.target+1)%npc.points.length;
+    const actions=night?['look','phone','idle','look']:['look','phone','chat','wave','idle'];
+    npc.action=actions[(npc.index+npc.target)%actions.length];
+    npc.wait=npc.action==='chat'?2.8:npc.action==='wave'?1.5:npc.action==='phone'?2.5:1.2+((npc.index+npc.target)%3)*.65;
+    if(npc.index===0&&hour>=7&&hour<10)npc.wait*=.65;continue;
+   }
+   const speed=(npc.index%3===0?1.05:.78)*(night?.78:1)*(npc.index===4||npc.index===5?.72:1),step=Math.min(dist,speed*dt);
+   npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;npc.root.rotation.y=Math.atan2(dx,dz);
+   const swing=Math.sin(now/145+npc.phase)*.28;
+   npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;npc.arms[0].rotation.x=-swing*.72;npc.arms[1].rotation.x=swing*.72;
+   npc.hands[0].position.y=.73+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=.73-Math.sin(now/145+npc.phase)*.035;
+   npc.feet[0].rotation.x=npc.legs[0].rotation.x*.35;npc.feet[1].rotation.x=npc.legs[1].rotation.x*.35;
+   npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;
+  }
  }
-
  camera.lockedTarget=player;camera.target=new B.Vector3(0,1.2,12);
  // Simple first-stage city interactions: nearby landmarks can be inspected.
  const interactionHint=document.getElementById('interactionHint');
