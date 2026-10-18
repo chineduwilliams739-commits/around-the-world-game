@@ -383,7 +383,9 @@
 
  let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
  function showToast(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',1800)}
- let last=performance.now(),walk=0;
+ let last=performance.now(),walk=0,firstFrameRendered=false;
+ // Never make the first playable frame depend on every external asset finishing.
+ // The rigged resident model is optional; the procedural city can render immediately.
  engine.runRenderLoop(()=>{
    const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
    const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
@@ -411,9 +413,13 @@
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
+   if(!firstFrameRendered){firstFrameRendered=true;loading.style.display='none';}
  });
  window.addEventListener('resize',()=>engine.resize());
- scene.executeWhenReady(()=>{loading.style.display='none';});
+ // Safety net for slow mobile devices or a stalled first frame.
+ setTimeout(()=>{if(loading.style.display!=='none'){
+   loading.innerHTML='<div><b>New Horizon City is taking longer than expected</b><span>The game may still be loading. Check your connection, then refresh this page.</span></div>';
+ }},12000);
 })();
 </script>
 </body>
