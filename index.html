@@ -283,10 +283,19 @@
    if(height>.01){modelRoot.scaling.scaleInPlace(1.82/height);modelRoot.computeWorldMatrix(true);bounds=modelRoot.getHierarchyBoundingVectors(true);}
    modelRoot.position.y-=bounds.min.y;
    modelRoot.computeWorldMatrix(true);
-   imported.meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isPickable=false;mesh.checkCollisions=false;});
+   imported.meshes.forEach(mesh=>{
+    mesh.setEnabled(true);
+    mesh.isVisible=true;
+    mesh.visibility=1;
+    mesh.isPickable=false;
+    mesh.checkCollisions=false;
+   });
    const animations=imported.skeletons.map(skeleton=>scene.beginAnimation(skeleton,0,120,true,1));
    if(!animations.length||animations.some(anim=>!anim))throw new Error("The imported player skeleton could not animate.");
-   animations.forEach(anim=>{anim.pause();playerRigAnimatables.push(anim);});
+   // Frame zero can leave the Dude rig in an awkward initial pose while idle.
+   // Move to a stable mid-cycle pose before pausing; movement resumes the same loop.
+   animations.forEach(anim=>{anim.goToFrame(30);anim.pause();playerRigAnimatables.push(anim);});
+   imported.meshes.forEach(mesh=>{if(mesh.getTotalVertices()>0)mesh.refreshBoundingInfo(true);});
    // Only hide the fallback body after the full rig and its animation are ready.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
