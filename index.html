@@ -21,7 +21,7 @@
 <canvas id="renderCanvas" aria-label="Playable 3D New Horizon City prototype"></canvas>
 <div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · LIVING CITY · PEDESTRIAN ROUTINES</span></div>
 <div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div><div id="environmentLabel">TIME: DAY · WEATHER: CLEAR</div></div>
-<div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
+<div class="hud help"><b>Explore the city</b><br>WASD / arrows to move or drive · Shift to jog/boost · E to interact<br>While driving: steer left/right, hold forward to accelerate. Drag to look around.</div>
 <div style="position:fixed;right:10px;bottom:8px;z-index:2;color:#d8e2e9a8;font-size:10px;text-align:right;pointer-events:auto">Character model: <a href="https://github.com/BabylonJS/Assets" target="_blank" rel="noreferrer" style="color:inherit">BabylonJS Assets</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" style="color:inherit">CC BY 4.0</a></div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
 <div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="interactButton">INTERACT</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
@@ -102,11 +102,11 @@
  for(const z of [-7.7,7.7])box('cross street pavement',0,.08,z,180,.16,2,sidewalk,false);
  for(let x=-80;x<=80;x+=8){if(Math.abs(x)<12)continue;box('cross lane dash',x,.05,0,3.2,.015,.15,white,false)}
 
- // Free procedural traffic: lightweight cars follow the existing main avenue.
- // These are visual traffic for this first phase; driving and vehicle collisions are not enabled yet.
+ // Free procedural traffic with driver occupants, vehicle entry and player driving.
  const trafficPaints=['#d84f45','#e0e3e5','#3475a8','#d7b34e','#4d9a75'].map((c,i)=>mat('traffic paint '+i,c,.38));
  const trafficGlass=mat('traffic windows','#5c8290',.25),trafficTyres=mat('traffic tyres','#202328',.95),trafficHub=mat('traffic wheel hubs','#9ba5aa',.4);
  const trafficLights=mat('traffic headlamps','#fff0c7',.25);trafficLights.emissiveColor=new B.Color3(.35,.29,.16);
+ const driverSkin=mat('car driver skin','#8d5d43'),driverHair=mat('car driver hair','#292622'),driverClothes=mat('car driver jacket','#b7b9c0');
  function createTrafficCar(index,config){
   const root=new B.TransformNode('traffic car '+index,scene);
   root.position.set(config.x,.04,config.z);root.rotation.y=config.direction>0?0:Math.PI;root.scaling.setAll(1.35);
@@ -124,7 +124,16 @@
    const lamp=B.MeshBuilder.CreateBox('traffic headlamp '+index,{width:.28,height:.13,depth:.07},scene);lamp.parent=root;lamp.position.set(x,.61,1.64);lamp.material=trafficLights;
    const tail=B.MeshBuilder.CreateBox('traffic tail lamp '+index,{width:.25,height:.12,depth:.06},scene);tail.parent=root;tail.position.set(x,.62,-1.64);tail.material=trafficPaints[0];
   }
-  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x};
+  const driverRoot=new B.TransformNode('traffic driver '+index,scene);
+  const driverBody=B.MeshBuilder.CreateCapsule('traffic driver body '+index,{height:.78,radius:.22,tessellation:8},scene);driverBody.parent=driverRoot;driverBody.position.y=1.02;driverBody.material=driverClothes;
+  const driverHead=B.MeshBuilder.CreateSphere('traffic driver head '+index,{diameter:.38,segments:10},scene);driverHead.parent=driverRoot;driverHead.position.y=1.59;driverHead.material=driverSkin;
+  const driverHairMesh=B.MeshBuilder.CreateSphere('traffic driver hair '+index,{diameter:.39,segments:8},scene);driverHairMesh.parent=driverRoot;driverHairMesh.position.set(0,1.72,-.015);driverHairMesh.scaling.y=.48;driverHairMesh.material=driverHair;
+  const driverArms=[],driverLegs=[];
+  for(const side of [-1,1]){
+   const arm=B.MeshBuilder.CreateCapsule('traffic driver arm '+index+' '+side,{height:.65,radius:.105,tessellation:7},scene);arm.parent=driverRoot;arm.position.set(side*.27,1.05,.12);arm.rotation.z=side*.42;arm.material=driverClothes;driverArms.push(arm);
+   const leg=B.MeshBuilder.CreateCapsule('traffic driver leg '+index+' '+side,{height:.65,radius:.12,tessellation:7},scene);leg.parent=driverRoot;leg.position.set(side*.14,.48,-.08);leg.material=driverClothes;driverLegs.push(leg);
+  }
+  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0};
  }
  const traffic=[
   createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:9.2}),
@@ -132,6 +141,28 @@
   createTrafficCar(2,{x:-4.4,z:5,direction:1,speed:8.1}),
   createTrafficCar(3,{x:4.4,z:-22,direction:-1,speed:8.7})
  ];
+ function updateCarDrivers(dt){
+  for(const car of traffic){
+   const d=car.driverRoot;
+   if(!car.fleeing){
+    d.position.set(car.root.position.x,car.root.position.y,car.root.position.z);
+    d.rotation.y=car.root.rotation.y;
+    d.setEnabled(true);
+    continue;
+   }
+   car.fleeTime+=dt;
+   const runSpeed=car.fleeTime<.35?1.6:4.4;
+   const awayX=car.driverSide;
+   d.position.x+=awayX*runSpeed*dt;
+   d.position.z+=(-Math.cos(car.root.rotation.y)*.25)*dt;
+   d.rotation.y=Math.atan2(awayX,-Math.cos(car.root.rotation.y)*.25);
+   const swing=Math.sin(car.fleeTime*12)*.65;
+   car.driverLegs[0].rotation.x=swing;car.driverLegs[1].rotation.x=-swing;
+   car.driverArms[0].rotation.x=-swing*.8;car.driverArms[1].rotation.x=swing*.8;
+   d.position.y=Math.abs(Math.sin(car.fleeTime*12))*.07;
+   if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;}
+  }
+ }
  function updateTraffic(dt){
   for(const car of traffic){
    if(car===activeVehicle)continue;
@@ -425,7 +456,7 @@
  [['mapPinCivic','civic'],['mapPinPark','park'],['mapPinShop','shop']].forEach(([id,key])=>{const el=document.getElementById(id);el.addEventListener('click',()=>setDestination(key));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setDestination(key);}})});
  function updateMap(){const x=player.position.x,z=player.position.z,cx=20+(x+90)/180*240,cy=20+(z+90)/180*240;mapPlayerMarker.setAttribute('transform','translate('+cx+' '+cy+') rotate('+(180-player.rotation.y*180/Math.PI)+')');if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
 
- let insideCivicHall=false, nearbyInteraction=null, activeVehicle=null;
+ let insideCivicHall=false, nearbyInteraction=null, activeVehicle=null, vehicleSpeed=0;
  function refreshInteraction(){
    if(activeVehicle){nearbyInteraction={name:'Exit vehicle',action:'vehicleExit'};interactionHint.style.display='block';interactionHint.textContent='E / INTERACT · Exit vehicle';return;}
    const p=player.position;
@@ -449,16 +480,22 @@
    }
    let closestCar=null,closestCarDistance=5.5;
    for(const car of traffic){if(car===activeVehicle)continue;const d=Math.hypot(p.x-car.root.position.x,p.z-car.root.position.z);if(d<closestCarDistance){closestCarDistance=d;closestCar=car;}}
-   if(closestCar&&closestCarDistance<best){nearbyInteraction={name:'Enter car',action:'vehicleEnter',vehicle:closestCar};}
+   if(closestCar&&closestCarDistance<best){nearbyInteraction={name:'Drag driver out / take car',action:'vehicleEnter',vehicle:closestCar};}
    interactionHint.style.display=nearbyInteraction?'block':'none';
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
  function interact(){
    if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='vehicleExit'){
-     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;showToast('You stepped out of the car. Approach another vehicle to drive.');return;
+     const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=null;camera.alpha=car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
    }else if(nearbyInteraction.action==='vehicleEnter'){
-     activeVehicle=nearbyInteraction.vehicle;player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);camera.alpha=-Math.PI/2;camera.beta=1.12;showToast('You got into the car. Use W/S or ↑/↓ to drive, A/D or ←/→ to steer, Shift for a speed boost. Press E or INTERACT to exit.');return;
+     activeVehicle=nearbyInteraction.vehicle;vehicleSpeed=0;activeVehicle.speedCurrent=0;
+     activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
+     activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.65,0,activeVehicle.root.position.z);
+     activeVehicle.driverRoot.rotation.y=activeVehicle.root.rotation.y;
+     player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);
+     camera.lockedTarget=null;camera.alpha=activeVehicle.root.rotation.y-Math.PI/2;camera.beta=1.08;camera.radius=12;
+     showToast('You pull the driver out. They scramble away as you take the wheel. Hold ▲ / W to accelerate; steer left or right.');return;
    }else if(nearbyInteraction.action==='resident'){
      const npc=nearbyInteraction.resident;
      npc.playerMeetings=(npc.playerMeetings||0)+1;
@@ -535,9 +572,15 @@
    const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
    if(activeVehicle){
      const car=activeVehicle;
-     if(strafe)car.root.rotation.y+=strafe*dt*(forward?1.15:1.65);
-     if(forward){
-       const driveSpeed=forward>0?(keys.ShiftLeft||keys.ShiftRight?25:16):-7.5;
+     if(strafe)car.root.rotation.y+=strafe*dt*(.7+Math.min(Math.abs(vehicleSpeed),22)/22*.85)*(vehicleSpeed<-.5?-1:1);
+     const accelerating=forward>0,braking=forward<0;
+     const maxForward=(keys.ShiftLeft||keys.ShiftRight)?30:24;
+     if(accelerating)vehicleSpeed=Math.min(maxForward,vehicleSpeed+(vehicleSpeed<0?22:10)*dt);
+     else if(braking)vehicleSpeed=Math.max(-8,vehicleSpeed-(vehicleSpeed>0?24:12)*dt);
+     else vehicleSpeed*=Math.exp(-1.65*dt);
+     car.speedCurrent=vehicleSpeed;
+     if(Math.abs(vehicleSpeed)>.05){
+       const driveSpeed=vehicleSpeed;
        const dx=Math.sin(car.root.rotation.y)*driveSpeed*dt,dz=Math.cos(car.root.rotation.y)*driveSpeed*dt;
        const nx=B.Scalar.Clamp(car.root.position.x+dx,-82,82),nz=B.Scalar.Clamp(car.root.position.z+dz,-82,82);
        const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW+1.05&&Math.abs(z-o.z)<o.halfD+1.7);
@@ -545,6 +588,9 @@
        if(!blocked(car.root.position.x,nz))car.root.position.z=nz;
        for(const wheel of car.wheels)wheel.rotation.x+=driveSpeed*dt*1.8;
      }
+     const wantedAlpha=car.root.rotation.y-Math.PI/2;
+     const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+     camera.alpha+=alphaDelta*Math.min(1,dt*3.2);camera.beta+=(1.08-camera.beta)*Math.min(1,dt*2.5);camera.radius+=(12-camera.radius)*Math.min(1,dt*2.2);
    }else if(forward||strafe){
      // Move in the camera's horizontal facing direction, not a fixed world direction.
      const inputLength=Math.hypot(strafe,forward)||1;
@@ -570,9 +616,9 @@
      playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
    }else{player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
-   camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.55,0)):player.position.add(new B.Vector3(0,1.2,0)));
-   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);refreshInteraction();updateMap();
-   const x=player.position.x,z=player.position.z;
+   camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
+   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);refreshInteraction();updateMap();
+   const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
    if(!firstFrameRendered){firstFrameRendered=true;loading.style.display='none';}
