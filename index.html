@@ -612,7 +612,7 @@
      if(strafe)car.root.rotation.y+=strafe*dt*(.7+Math.min(Math.abs(vehicleSpeed),22)/22*.85)*(vehicleSpeed<-.5?-1:1);
      const accelerating=forward>0,braking=forward<0;
      const maxForward=(keys.ShiftLeft||keys.ShiftRight)?30:24;
-     if(accelerating)vehicleSpeed=Math.min(maxForward,vehicleSpeed+(vehicleSpeed<0?22:10)*dt);
+     if(accelerating)vehicleSpeed=Math.min(maxForward,vehicleSpeed+(vehicleSpeed<0?22:13)*dt);
      else if(braking)vehicleSpeed=Math.max(-8,vehicleSpeed-(vehicleSpeed>0?24:12)*dt);
      else vehicleSpeed*=Math.exp(-1.65*dt);
      car.speedCurrent=vehicleSpeed;
