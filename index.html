@@ -101,6 +101,45 @@
  for(const x of [-9.5,9.5])box('avenue pavement',x,.08,0,2,.16,180,sidewalk,false);
  for(const z of [-7.7,7.7])box('cross street pavement',0,.08,z,180,.16,2,sidewalk,false);
  for(let x=-80;x<=80;x+=8){if(Math.abs(x)<12)continue;box('cross lane dash',x,.05,0,3.2,.015,.15,white,false)}
+
+ // Free procedural traffic: lightweight cars follow the existing main avenue.
+ // These are visual traffic for this first phase; driving and vehicle collisions are not enabled yet.
+ const trafficPaints=['#d84f45','#e0e3e5','#3475a8','#d7b34e','#4d9a75'].map((c,i)=>mat('traffic paint '+i,c,.38));
+ const trafficGlass=mat('traffic windows','#5c8290',.25),trafficTyres=mat('traffic tyres','#202328',.95),trafficHub=mat('traffic wheel hubs','#9ba5aa',.4);
+ const trafficLights=mat('traffic headlamps','#fff0c7',.25);trafficLights.emissiveColor=new B.Color3(.35,.29,.16);
+ function createTrafficCar(index,config){
+  const root=new B.TransformNode('traffic car '+index,scene);
+  root.position.set(config.x,.04,config.z);root.rotation.y=config.direction>0?0:Math.PI;
+  const body=B.MeshBuilder.CreateBox('traffic body '+index,{width:1.65,height:.62,depth:3.25},scene);body.parent=root;body.position.y=.55;body.material=trafficPaints[index%trafficPaints.length];
+  const hood=B.MeshBuilder.CreateBox('traffic bonnet '+index,{width:1.48,height:.15,depth:.78},scene);hood.parent=root;hood.position.set(0,.86,1.02);hood.material=body.material;
+  const cabin=B.MeshBuilder.CreateBox('traffic cabin '+index,{width:1.28,height:.62,depth:1.48},scene);cabin.parent=root;cabin.position.set(0,1.12,-.12);cabin.material=trafficGlass;
+  const windscreen=B.MeshBuilder.CreateBox('traffic windscreen '+index,{width:1.12,height:.4,depth:.045},scene);windscreen.parent=root;windscreen.position.set(0,1.14,.64);windscreen.rotation.x=-.18;windscreen.material=trafficGlass;
+  const rearGlass=B.MeshBuilder.CreateBox('traffic rear glass '+index,{width:1.1,height:.38,depth:.045},scene);rearGlass.parent=root;rearGlass.position.set(0,1.14,-.88);rearGlass.rotation.x=.18;rearGlass.material=trafficGlass;
+  const wheels=[];
+  for(const x of [-.82,.82])for(const z of [-1.02,1.02]){
+   const wheel=B.MeshBuilder.CreateCylinder('traffic wheel '+index,{diameter:.52,height:.22,tessellation:12},scene);wheel.parent=root;wheel.position.set(x,.36,z);wheel.rotation.z=Math.PI/2;wheel.material=trafficTyres;wheels.push(wheel);
+   const hub=B.MeshBuilder.CreateCylinder('traffic hub '+index,{diameter:.25,height:.235,tessellation:10},scene);hub.parent=root;hub.position.set(x*1.015,.36,z);hub.rotation.z=Math.PI/2;hub.material=trafficHub;
+  }
+  for(const x of [-.53,.53]){
+   const lamp=B.MeshBuilder.CreateBox('traffic headlamp '+index,{width:.28,height:.13,depth:.07},scene);lamp.parent=root;lamp.position.set(x,.61,1.64);lamp.material=trafficLights;
+   const tail=B.MeshBuilder.CreateBox('traffic tail lamp '+index,{width:.25,height:.12,depth:.06},scene);tail.parent=root;tail.position.set(x,.62,-1.64);tail.material=trafficPaints[0];
+  }
+  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x};
+ }
+ const traffic=[
+  createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:5.2}),
+  createTrafficCar(1,{x:4.4,z:62,direction:-1,speed:5.8}),
+  createTrafficCar(2,{x:-4.4,z:5,direction:1,speed:4.4}),
+  createTrafficCar(3,{x:4.4,z:-22,direction:-1,speed:4.9})
+ ];
+ function updateTraffic(dt){
+  for(const car of traffic){
+   car.root.position.z+=car.direction*car.speed*dt;
+   if(car.root.position.z>86)car.root.position.z=-86;
+   else if(car.root.position.z< -86)car.root.position.z=86;
+   for(const wheel of car.wheels)wheel.rotation.x+=car.direction*car.speed*dt*1.8;
+  }
+ }
  // Building lots: varied heights, facade panels, windows and rooftops
  const facadeMats=[cream,brick,dark,concrete];
  function building(x,z,w,d,h,material,seed,hollow=false){
@@ -510,7 +549,7 @@
    }else{player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   updateEnvironment(now,dt);updateResidents(dt,now);refreshInteraction();updateMap();
+   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);refreshInteraction();updateMap();
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
