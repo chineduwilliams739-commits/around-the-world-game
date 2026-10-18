@@ -19,7 +19,7 @@
 <body>
 <div class="loading" id="loading"><div><b>AROUND THE WORLD</b><span>Opening New Horizon City…</span></div></div>
 <canvas id="renderCanvas" aria-label="Playable 3D New Horizon City prototype"></canvas>
-<div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · FIRST PLAYABLE BUILD · MOBILE FIX</span></div>
+<div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · LIVING CITY · PEDESTRIAN ROUTINES</span></div>
 <div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div><div id="environmentLabel">TIME: DAY · WEATHER: CLEAR</div></div>
 <div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
@@ -28,7 +28,7 @@
 <button class="map-toggle" id="mapToggle" aria-expanded="false">🗺 CITY MAP</button>
 <section class="map-panel" id="mapPanel" aria-label="New Horizon City map">
  <div class="map-head"><strong>NEW HORIZON CITY</strong><button id="closeMap" aria-label="Close map">CLOSE ✕</button></div>
- <p>Tap a marked place to set your destination. The red dot shows your current position.</p>
+ <p>Tap a marked place to set your destination. The red arrow shows your position and facing direction.</p>
  <svg class="city-map" viewBox="0 0 280 280" role="img" aria-label="Map showing Civic Hall, Green Park, Downtown Shop, Central Avenue and Cross Street">
   <rect x="0" y="0" width="280" height="280" rx="10" fill="#203b3d"/>
   <path d="M20 20H260V260H20Z" fill="#294b43" stroke="#6b897b" stroke-width="1"/>
@@ -166,6 +166,56 @@
    const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=player;foot.position.set(side*.19,.12,.08);
    const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=clothes;
  }
+
+ // Ambient residents: lightweight pedestrians follow repeating sidewalk/park routes.
+ const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
+ const npcMaterials=npcPalette.map((c,i)=>mat('resident outfit '+i,c));
+ const npcSkinMats=['#b77d5b','#80543e','#d0a17c','#9b684e'].map((c,i)=>mat('resident skin '+i,c));
+ const npcHairMats=['#25272b','#392b25','#b8a071','#343d45'].map((c,i)=>mat('resident hair '+i,c));
+ const residentRoutes=[
+   [[-9.5,-68],[-9.5,-34],[-9.5,5],[-9.5,44],[-9.5,68]],
+   [[9.5,65],[9.5,30],[9.5,-8],[9.5,-42],[9.5,-67]],
+   [[-68,-7.7],[-38,-7.7],[-15,-7.7],[12,-7.7],[38,-7.7],[67,-7.7]],
+   [[66,7.7],[37,7.7],[12,7.7],[-14,7.7],[-40,7.7],[-66,7.7]],
+   [[-50,28],[-35,28],[-35,42],[-50,42],[-50,28]],
+   [[-46,25],[-34,34],[-46,44],[-53,35],[-46,25]],
+   [[-9.5,-58],[-9.5,-18],[-9.5,24],[-9.5,58]],
+   [[9.5,58],[9.5,18],[9.5,-24],[9.5,-58]]
+ ];
+ const residents=[];
+ function createResident(index,route){
+   const root=new B.TransformNode('residentRoot'+index,scene);
+   const outfit=npcMaterials[index%npcMaterials.length],skinMat=npcSkinMats[index%npcSkinMats.length],hairMat=npcHairMats[index%npcHairMats.length];
+   const torso=B.MeshBuilder.CreateCapsule('residentBody'+index,{height:1.2,radius:.29},scene);torso.parent=root;torso.position.y=.96;torso.material=outfit;
+   const headMesh=B.MeshBuilder.CreateSphere('residentHead'+index,{diameter:.48,segments:8},scene);headMesh.parent=root;headMesh.position.y=1.78;headMesh.material=skinMat;
+   const hairMesh=B.MeshBuilder.CreateSphere('residentHair'+index,{diameter:.5,segments:7},scene);hairMesh.parent=root;hairMesh.position.y=1.96;hairMesh.scaling.y=.42;hairMesh.material=hairMat;
+   const legs=[];
+   for(const side of [-1,1]){
+     const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.68,radius:.12},scene);leg.parent=root;leg.position.set(side*.15,.35,0);leg.material=pants;legs.push(leg);
+   }
+   root.position.set(route[0][0],0,route[0][1]);
+   const points=route.map(p=>new B.Vector3(p[0],0,p[1]));
+   residents.push({root,points,index,target:1,wait:(index%4)*1.8,phase:index*.8,legs});
+ }
+ residentRoutes.forEach((route,i)=>createResident(i,route));
+ function updateResidents(dt,now){
+   for(const npc of residents){
+     if(npc.wait>0){npc.wait-=dt;continue;}
+     const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
+     if(dist<.35){
+       npc.target=(npc.target+1)%npc.points.length;
+       npc.wait=(npc.target%2===0)?1.1:0.15;
+       continue;
+     }
+     const speed=(npc.index%3===0?1.05:0.78),step=Math.min(dist,speed*dt);
+     npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;
+     npc.root.rotation.y=Math.atan2(dx,dz);
+     const swing=Math.sin(now/170+npc.phase)*.09;
+     npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;
+     npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.025;
+   }
+ }
+
  camera.lockedTarget=player;camera.target=new B.Vector3(0,1.2,12);
  // Simple first-stage city interactions: nearby landmarks can be inspected.
  const interactionHint=document.getElementById('interactionHint');
@@ -274,7 +324,7 @@
    }else{player.position.y=0}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   updateEnvironment(now,dt);refreshInteraction();updateMap();
+   updateEnvironment(now,dt);updateResidents(dt,now);refreshInteraction();updateMap();
    const x=player.position.x,z=player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
