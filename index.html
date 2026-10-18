@@ -257,52 +257,46 @@
  }
  const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
- // Upgrade the player to the free rigged BabylonJS Dude model when it loads.
- // The procedural avatar stays visible until the rig and its skeleton are confirmed.
+ // Use the same independently imported rigged 3D human model used by residents.
+ // Keep the procedural avatar visible until the imported hierarchy and animation are valid.
  let playerRigAnimatables=[];
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
+  let imported=null;
   try{
-   const imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
+   imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
    const modelRoot=imported.meshes[0];
    const visibleRigMeshes=imported.meshes.filter(mesh=>mesh.getTotalVertices()>0);
-   if(!modelRoot||!visibleRigMeshes.length||!imported.skeletons.length){
-    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
-    throw new Error("The model did not contain a visible rigged character.");
-   }
-   modelRoot.parent=player;
+   if(!modelRoot||!visibleRigMeshes.length||!imported.skeletons.length)throw new Error("No complete rigged player model was imported.");
+   // Match the resident import hierarchy: a transform root carries the full skinned model.
+   const rigRoot=new B.TransformNode("playerRigRoot",scene);
+   rigRoot.parent=player;
+   rigRoot.position.set(0,0,0);
+   modelRoot.parent=rigRoot;
    modelRoot.position.set(0,0,0);
-   modelRoot.rotation.y=Math.PI; // The Dude asset faces opposite the game's +Z forward direction.
+   modelRoot.rotation.y=Math.PI;
    modelRoot.scaling.scaleInPlace(.03);
-   // Normalize the full imported hierarchy, then offset the asset's actual feet to the ground.
    modelRoot.computeWorldMatrix(true);
-   let modelBounds=modelRoot.getHierarchyBoundingVectors(true);
-   const modelHeight=modelBounds.max.y-modelBounds.min.y;
-   if(modelHeight>0.01){modelRoot.scaling.scaleInPlace(1.95/modelHeight);modelRoot.computeWorldMatrix(true);modelBounds=modelRoot.getHierarchyBoundingVectors(true);}
-   modelRoot.position.y-=modelBounds.min.y-player.position.y;
+   let bounds=modelRoot.getHierarchyBoundingVectors(true);
+   const height=bounds.max.y-bounds.min.y;
+   if(height>.01){modelRoot.scaling.scaleInPlace(1.82/height);modelRoot.computeWorldMatrix(true);bounds=modelRoot.getHierarchyBoundingVectors(true);}
+   modelRoot.position.y-=bounds.min.y;
    modelRoot.computeWorldMatrix(true);
-   modelRoot.isPickable=false;
    imported.meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isPickable=false;mesh.checkCollisions=false;});
-   imported.skeletons.forEach(skeleton=>{
-    const anim=scene.beginAnimation(skeleton,0,120,true,1);
-    if(anim){anim.pause();playerRigAnimatables.push(anim);}
-   });
-   if(!playerRigAnimatables.length){
-    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
-    throw new Error("The character skeleton could not be animated.");
-   }
+   const animations=imported.skeletons.map(skeleton=>scene.beginAnimation(skeleton,0,120,true,1));
+   if(!animations.length||animations.some(anim=>!anim))throw new Error("The imported player skeleton could not animate.");
+   animations.forEach(anim=>{anim.pause();playerRigAnimatables.push(anim);});
+   // Only hide the fallback body after the full rig and its animation are ready.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
-   console.info("Rigged player model loaded successfully.");
+   console.info("Loaded rigged 3D player model.");
   }catch(error){
-   console.warn("Keeping the procedural player avatar because the free rigged model could not load:",error);
+   if(imported)imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
+   console.warn("Keeping the complete procedural player avatar because the rigged model failed:",error);
   }
  }
- // TEMPORARILY keep the complete procedural avatar visible. The imported Dude rig
- // currently renders incorrectly in some browsers (only the head is visible).
- // Do not replace the working full-body avatar until the rig is validated.
- // void upgradePlayerModel();
+ void upgradePlayerModel();
 
  // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
