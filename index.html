@@ -22,7 +22,7 @@
 <div class="hud brand"><strong>AROUND THE WORLD</strong><span>NEW HORIZON CITY · LIVING CITY · PEDESTRIAN ROUTINES</span></div>
 <div class="hud status"><div>PROTOTYPE <b>● ONLINE DEMO</b></div><div id="position">District: Central Avenue</div><div id="environmentLabel">TIME: DAY · WEATHER: CLEAR</div></div>
 <div class="hud help"><b>Explore the city</b><br>WASD / arrow keys to move · Shift to jog · E to interact<br>Drag the scene to look around · Approach marked city locations.</div>
-<div style="position:fixed;right:10px;bottom:8px;z-index:2;color:#d8e2e9a8;font-size:10px;text-align:right;pointer-events:none">Character model: BabylonJS Assets · CC BY 4.0</div>
+<div style="position:fixed;right:10px;bottom:8px;z-index:2;color:#d8e2e9a8;font-size:10px;text-align:right;pointer-events:auto">Character model: <a href="https://github.com/BabylonJS/Assets" target="_blank" rel="noreferrer" style="color:inherit">BabylonJS Assets</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" style="color:inherit">CC BY 4.0</a></div>
 <div class="rotate-overlay" id="rotateOverlay"><div class="card"><div class="phone">↻</div><strong>Rotate your phone</strong><p>AROUND THE WORLD is designed to be played in landscape. Turn your phone sideways to continue.</p><button id="tryLandscape" style="padding:11px 16px;border-radius:10px;border:1px solid #ffffff55;background:#277a69;color:white;font-weight:700">Try landscape mode</button></div></div>
 <div class="mobile" id="mobileControls"><div class="pad"><button data-key="KeyW" aria-label="Move forward">▲</button><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move backward">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div><div class="controls"><button class="action" data-key="ShiftLeft">JOG</button><button class="action" id="interactButton">INTERACT</button><button class="action" id="lookButton">LOOK<br>AROUND</button></div></div>
 
@@ -251,8 +251,9 @@
     npc.root=rigRoot;
     npc.rigged=true;
     npc.rigAnimations=clonedSkeletons.map((skeleton,i)=>scene.beginAnimation(skeleton,0,120,true,(npc.index%3===0?1.0:.86)+(i*.01)));
-    if(npc.phone){npc.phone.parent=rigRoot;npc.phone.isVisible=false;}
-    if(npc.bag)npc.bag.parent=rigRoot;
+    const localScale=rigRoot.scaling.x;
+    if(npc.phone){npc.phone.parent=rigRoot;npc.phone.position.scaleInPlace(1/localScale);npc.phone.scaling.scaleInPlace(1/localScale);npc.phone.isVisible=false;}
+    if(npc.bag){npc.bag.parent=rigRoot;npc.bag.position.scaleInPlace(1/localScale);npc.bag.scaling.scaleInPlace(1/localScale);}
    });
    source.meshes.forEach(m=>{if(!m.isDisposed())m.dispose(false,false);});
    console.info('Rigged resident models loaded:',residents.length);
