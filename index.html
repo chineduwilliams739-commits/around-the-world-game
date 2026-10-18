@@ -93,6 +93,11 @@
  camera.lowerRadiusLimit=5;camera.upperRadiusLimit=14;camera.lowerBetaLimit=.55;camera.upperBetaLimit=1.45;camera.wheelPrecision=55;camera.panningSensibility=0;camera.attachControl(canvas,true);camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
  const hemi=new B.HemisphericLight('skyLight',new B.Vector3(0,1,0),scene);hemi.intensity=.82;hemi.groundColor=new B.Color3(.28,.32,.31);
  const sun=new B.DirectionalLight('sun',new B.Vector3(-.45,-1,-.25),scene);sun.position=new B.Vector3(35,55,25);sun.intensity=1.25;
+ // Subtle image grading and crisp physically based highlights; keep the render scale mobile-friendly.
+ scene.imageProcessingConfiguration.toneMappingEnabled=true;
+ scene.imageProcessingConfiguration.toneMappingType=B.ImageProcessingConfiguration.TONEMAPPING_ACES;
+ scene.imageProcessingConfiguration.exposure=1.05;
+ scene.imageProcessingConfiguration.contrast=1.12;
  const mat=(name,color,rough=.8)=>{const m=new B.PBRMaterial(name,scene);m.albedoColor=B.Color3.FromHexString(color);m.roughness=rough;return m};
  const grass=mat('park grass','#64836b'), asphalt=mat('road asphalt','#343c43'), sidewalk=mat('pavement','#aeb6b8'), white=mat('road markings','#e9e5ce'), glass=mat('blue glass','#6c9daa',.28), concrete=mat('warm concrete','#c9c2b4'), cream=mat('cream facade','#e3d7c3'), brick=mat('terracotta facade','#a96852'), dark=mat('dark facade','#53616b'), roof=mat('roof','#454d52'), green=mat('tree foliage','#397654'), trunk=mat('tree trunk','#654b37'), gold=mat('gold accent','#d9b56c',.35), skin=mat('skin','#a96f50'), clothes=mat('player jacket','#1f6f70'), pants=mat('player trousers','#273849'), shoe=mat('shoes','#20242b');
  // Lightweight environmental simulation: a full 24-minute day and changing weather.
@@ -378,17 +383,28 @@
   const headMesh=B.MeshBuilder.CreateSphere('residentHead'+index,{diameter:.49,segments:12},scene);headMesh.parent=root;headMesh.position.y=1.83;headMesh.material=skinMat;
   const hairMesh=B.MeshBuilder.CreateSphere('residentHair'+index,{diameter:.52,segments:10},scene);hairMesh.parent=root;hairMesh.position.y=2.02;hairMesh.scaling.y=.42;hairMesh.material=hairMat;
   const fringe=B.MeshBuilder.CreateSphere('residentFringe'+index,{diameter:.29,segments:8},scene);fringe.parent=root;fringe.position.set(0,1.99,.19);fringe.scaling.set(1,.42,.45);fringe.material=hairMat;
-  const nose=B.MeshBuilder.CreateSphere('residentNose'+index,{diameter:.09,segments:6},scene);nose.parent=root;nose.position.set(0,1.79,.245);nose.scaling.set(.72,1,1);nose.material=skinMat;
+  const nose=B.MeshBuilder.CreateSphere('residentNose'+index,{diameter:.09,segments:8},scene);nose.parent=root;nose.position.set(0,1.79,.245);nose.scaling.set(.72,1,1);nose.material=skinMat;
+  const mouth=B.MeshBuilder.CreateSphere('residentMouth'+index,{diameter:.105,segments:8},scene);mouth.parent=root;mouth.position.set(0,1.735,.238);mouth.scaling.set(1,.25,.28);mouth.material=mouthMat;
+  const ears=[];
   for(const side of [-1,1]){
-   const eye=B.MeshBuilder.CreateSphere('residentEye'+index+'_'+side,{diameter:.075,segments:6},scene);eye.parent=root;eye.position.set(side*.105,1.86,.218);eye.scaling.z=.4;eye.material=eyeMat;
-   const pupil=B.MeshBuilder.CreateSphere('residentPupil'+index+'_'+side,{diameter:.035,segments:6},scene);pupil.parent=root;pupil.position.set(side*.105,1.86,.244);pupil.scaling.z=.4;pupil.material=pupilMat;
+   const ear=B.MeshBuilder.CreateSphere('residentEar'+index+'_'+side,{diameter:.145,segments:8},scene);ear.parent=root;ear.position.set(side*.245,1.82,0);ear.scaling.set(.55,.9,.55);ear.material=skinMat;ears.push(ear);
+   const eye=B.MeshBuilder.CreateSphere('residentEye'+index+'_'+side,{diameter:.075,segments:8},scene);eye.parent=root;eye.position.set(side*.105,1.86,.218);eye.scaling.set(1,1,.4);eye.material=eyeMat;
+   const pupil=B.MeshBuilder.CreateSphere('residentPupil'+index+'_'+side,{diameter:.035,segments:8},scene);pupil.parent=root;pupil.position.set(side*.105,1.86,.244);pupil.scaling.z=.4;pupil.material=pupilMat;
+   const brow=B.MeshBuilder.CreateBox('residentBrow'+index+'_'+side,{width:.12,height:.027,depth:.025},scene);brow.parent=root;brow.position.set(side*.105,1.925,.218);brow.rotation.z=side*-.06;brow.material=hairMat;
   }
+  // Layered everyday clothing gives residents a more tailored silhouette without heavy assets.
+  const shirtMat=mat('resident shirt '+index,index%2?'#e7e4dc':'#d9e2e5',.92);
+  const collar=B.MeshBuilder.CreateCylinder('resident collar '+index,{height:.13,diameterTop:.23,diameterBottom:.29,tessellation:8},scene);collar.parent=root;collar.position.set(0,1.53,.025);collar.material=shirtMat;
+  const placket=B.MeshBuilder.CreateBox('resident jacket placket '+index,{width:.075,height:.42,depth:.035},scene);placket.parent=root;placket.position.set(0,1.16,.294);placket.material=shirtMat;
+  for(let b=0;b<3;b++){const button=B.MeshBuilder.CreateSphere('resident button '+index+' '+b,{diameter:.035,segments:6},scene);button.parent=root;button.position.set(0,1.31-b*.13,.32);button.material=gold;}
   const legs=[],feet=[],arms=[],hands=[];
   for(const side of [-1,1]){
    const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.72,radius:.125,tessellation:8},scene);leg.parent=root;leg.position.set(side*.15,.39,0);leg.material=trousers;legs.push(leg);
+   const sole=B.MeshBuilder.CreateBox('residentSole'+index+'_'+side,{width:.205,height:.045,depth:.35},scene);sole.parent=root;sole.position.set(side*.15,.055,.085);sole.material=roof;
    const foot=B.MeshBuilder.CreateBox('residentFoot'+index+'_'+side,{width:.2,height:.13,depth:.34},scene);foot.parent=root;foot.position.set(side*.15,.12,.08);foot.material=shoes;feet.push(foot);
-   const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:8},scene);arm.parent=root;arm.position.set(side*.39,1.12,0);arm.rotation.z=side*-.12;arm.material=outfit;arms.push(arm);
-   const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:7},scene);hand.parent=root;hand.position.set(side*.4,.73,.015);hand.material=skinMat;hands.push(hand);
+   const cuff=B.MeshBuilder.CreateCylinder('residentCuff'+index+'_'+side,{height:.13,diameter:.22,tessellation:8},scene);cuff.parent=root;cuff.position.set(side*.39,.81,0);cuff.rotation.z=side*-.12;cuff.material=outfit;
+   const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:10},scene);arm.parent=root;arm.position.set(side*.39,1.12,0);arm.rotation.z=side*-.12;arm.material=outfit;arms.push(arm);
+   const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:8},scene);hand.parent=root;hand.position.set(side*.4,.73,.015);hand.material=skinMat;hands.push(hand);
   }
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
