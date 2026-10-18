@@ -362,7 +362,7 @@
  const npcHairMats=['#25272b','#392b25','#b8a071','#343d45'].map((c,i)=>mat('resident hair '+i,c));
  const npcPantsMats=['#293643','#45454b','#343e35','#55443b'].map((c,i)=>mat('resident trousers '+i,c));
  const npcShoeMats=['#24272a','#57463b','#ded9cf'].map((c,i)=>mat('resident shoes '+i,c));
- const eyeMat=mat('resident eyes','#f1e8d8',.45),pupilMat=mat('resident pupils','#292b30',.4),phoneMat=mat('resident phone','#20262d',.3),bagMat=mat('resident bags','#5c5143');
+ const eyeMat=mat('resident eyes','#f1e8d8',.45),pupilMat=mat('resident pupils','#292b30',.4),npcMouthMat=mat('resident mouth','#754b43',.7),phoneMat=mat('resident phone','#20262d',.3),bagMat=mat('resident bags','#5c5143');
  const residentRoutes=[
  [[-9.5,-68],[-9.5,-34],[-9.5,5],[-9.5,44],[-9.5,68]],
  [[9.5,65],[9.5,30],[9.5,-8],[9.5,-42],[9.5,-67]],
@@ -384,7 +384,7 @@
   const hairMesh=B.MeshBuilder.CreateSphere('residentHair'+index,{diameter:.52,segments:10},scene);hairMesh.parent=root;hairMesh.position.y=2.02;hairMesh.scaling.y=.42;hairMesh.material=hairMat;
   const fringe=B.MeshBuilder.CreateSphere('residentFringe'+index,{diameter:.29,segments:8},scene);fringe.parent=root;fringe.position.set(0,1.99,.19);fringe.scaling.set(1,.42,.45);fringe.material=hairMat;
   const nose=B.MeshBuilder.CreateSphere('residentNose'+index,{diameter:.09,segments:8},scene);nose.parent=root;nose.position.set(0,1.79,.245);nose.scaling.set(.72,1,1);nose.material=skinMat;
-  const mouth=B.MeshBuilder.CreateSphere('residentMouth'+index,{diameter:.105,segments:8},scene);mouth.parent=root;mouth.position.set(0,1.735,.238);mouth.scaling.set(1,.25,.28);mouth.material=mouthMat;
+  const mouth=B.MeshBuilder.CreateSphere('residentMouth'+index,{diameter:.105,segments:8},scene);mouth.parent=root;mouth.position.set(0,1.735,.238);mouth.scaling.set(1,.25,.28);mouth.material=npcMouthMat;
   const ears=[];
   for(const side of [-1,1]){
    const ear=B.MeshBuilder.CreateSphere('residentEar'+index+'_'+side,{diameter:.145,segments:8},scene);ear.parent=root;ear.position.set(side*.245,1.82,0);ear.scaling.set(.55,.9,.55);ear.material=skinMat;ears.push(ear);
