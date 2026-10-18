@@ -35,7 +35,7 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
  const grid=BABYLON.MeshBuilder.CreateGround('grid',{width:14,height:14,subdivisions:14},scene);
  const gridMat=new BABYLON.StandardMaterial('grid material',scene);gridMat.wireframe=true;gridMat.emissiveColor=new BABYLON.Color3(.12,.2,.28);gridMat.alpha=.18;grid.material=gridMat;grid.position.y=.006;
  try{
-  const imported=await BABYLON.SceneLoader.ImportMeshAsync('', './','character.glb',scene);
+  const imported=await BABYLON.SceneLoader.ImportMeshAsync('', 'https://raw.githubusercontent.com/programasweights/avatar/main/public/assets/', 'character.glb', scene);
   const modelRoot=imported.meshes.find(m=>!m.parent)||imported.meshes[0];
   const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
   if(!modelRoot||!geometry.length)throw new Error('The asset loaded but contains no visible mesh geometry.');
@@ -52,11 +52,11 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
   camera.setTarget(new BABYLON.Vector3(0,.92,0));
   status.textContent='Model loaded — inspect before game integration';
   status.style.color='#8de6b0';
-  details.textContent='Visible meshes: '+geometry.length+'\nSkeletons: '+imported.skeletons.length+'\nAnimation groups: '+(imported.animationGroups||[]).length+'\nHeight before normalization: '+height.toFixed(3)+' units\n\nThis is a validation preview, not the live game. If the pose or body looks wrong, the model will not be enabled in the main game.';
+  details.textContent='Visible meshes: '+geometry.length+'\nSkeletons: '+imported.skeletons.length+'\nAnimation groups: '+(imported.animationGroups||[]).length+'\nHeight before normalization: '+height.toFixed(3)+' units\n\nSource: Quaternius Universal Base Characters — Superhero Male (CC0 1.0). This is a validation preview, not the live game. If the pose or body looks wrong, the model will not be enabled in the main game.';
   console.info('Character preview validation',{meshes:geometry.length,skeletons:imported.skeletons.length,animationGroups:(imported.animationGroups||[]).length,height});
  }catch(e){
   status.textContent='Model validation failed — live game untouched';status.style.color='#ff9b9b';
-  details.textContent=String(e&&e.message||e)+'\n\nPossible causes: source file format, cross-origin loading, or asset structure. The model will not be added to the main game until this passes.';
+  details.textContent=String(e&&e.message||e)+'\n\nPossible causes: source file format, network/CORS loading, or asset structure. The model will not be added to the main game until this passes.';
   console.error('Character preview validation failed',e);
  }
  engine.runRenderLoop(()=>scene.render());
