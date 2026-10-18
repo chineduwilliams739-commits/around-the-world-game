@@ -157,16 +157,33 @@
    box('streetlight arm',x+(x<0?.45:-.45),4.1,z,.9,.12,.12,roof,false);
    const bulb=B.MeshBuilder.CreateSphere('streetlight bulb',{diameter:.32},scene);bulb.position.set(x+(x<0?.85:-.85),4.05,z);bulb.material=gold;
  }
- // Player character assembled from simple shapes; move the root and keep camera following it.
+ // Player avatar: detailed procedural human, available immediately with no external model dependency.
  const player=new B.TransformNode('playerRoot',scene);player.position.set(0,0,12);
- const body=B.MeshBuilder.CreateCapsule('player body',{height:1.35,radius:.34},scene);body.parent=player;body.position.y=1.05;body.material=clothes;body.checkCollisions=true;
- const head=B.MeshBuilder.CreateSphere('player head',{diameter:.58,segments:12},scene);head.parent=player;head.position.y=1.95;head.material=skin;
- const hair=mat('hair','#25272b');const hairMesh=B.MeshBuilder.CreateSphere('hair',{diameter:.61,segments:10},scene);hairMesh.parent=player;hairMesh.position.y=2.13;hairMesh.scaling.y=.5;hairMesh.material=hair;
+ const playerLegs=[],playerArms=[],playerFeet=[],playerHands=[];
+ const body=B.MeshBuilder.CreateCapsule('player body',{height:1.35,radius:.34,tessellation:12},scene);body.parent=player;body.position.y=1.05;body.material=clothes;body.checkCollisions=true;
+ const jacketMat=mat('player jacket','#31536a'),shirtMat=mat('player shirt','#e1dfd6'),beltMat=mat('player belt','#272c32'),buckleMat=mat('player buckle','#d4b36a'),eyeWhite=mat('player eyes','#f6eee1'),pupilMatPlayer=mat('player pupils','#292b30'),browMat=mat('player eyebrows','#302923'),mouthMat=mat('player mouth','#754b43');
+ const jacketLeft=B.MeshBuilder.CreateBox('player jacket left panel',{width:.2,height:.64,depth:.055},scene);jacketLeft.parent=player;jacketLeft.position.set(-.115,1.15,.302);jacketLeft.material=jacketMat;
+ const jacketRight=B.MeshBuilder.CreateBox('player jacket right panel',{width:.2,height:.64,depth:.055},scene);jacketRight.parent=player;jacketRight.position.set(.115,1.15,.302);jacketRight.material=jacketMat;
+ const shirt=B.MeshBuilder.CreateBox('player shirt inset',{width:.14,height:.38,depth:.025},scene);shirt.parent=player;shirt.position.set(0,1.2,.335);shirt.material=shirtMat;
+ const collarLeft=B.MeshBuilder.CreateBox('player collar left',{width:.13,height:.16,depth:.045},scene);collarLeft.parent=player;collarLeft.position.set(-.075,1.55,.32);collarLeft.rotation.z=-.28;collarLeft.material=shirtMat;
+ const collarRight=B.MeshBuilder.CreateBox('player collar right',{width:.13,height:.16,depth:.045},scene);collarRight.parent=player;collarRight.position.set(.075,1.55,.32);collarRight.rotation.z=.28;collarRight.material=shirtMat;
+ const belt=B.MeshBuilder.CreateBox('player belt',{width:.53,height:.105,depth:.39},scene);belt.parent=player;belt.position.set(0,.61,0);belt.material=beltMat;
+ const buckle=B.MeshBuilder.CreateBox('player belt buckle',{width:.11,height:.09,depth:.025},scene);buckle.parent=player;buckle.position.set(0,.61,.21);buckle.material=buckleMat;
+ const head=B.MeshBuilder.CreateSphere('player head',{diameter:.58,segments:16},scene);head.parent=player;head.position.y=1.95;head.material=skin;
+ const hair=mat('hair','#25272b');const hairMesh=B.MeshBuilder.CreateSphere('hair',{diameter:.61,segments:12},scene);hairMesh.parent=player;hairMesh.position.y=2.13;hairMesh.scaling.y=.5;hairMesh.material=hair;
+ const fringe=B.MeshBuilder.CreateSphere('player fringe',{diameter:.32,segments:10},scene);fringe.parent=player;fringe.position.set(0,2.08,.22);fringe.scaling.set(1,.42,.48);fringe.material=hair;
+ const nose=B.MeshBuilder.CreateSphere('player nose',{diameter:.09,segments:8},scene);nose.parent=player;nose.position.set(0,1.91,.285);nose.scaling.set(.72,1,.75);nose.material=skin;
+ const mouth=B.MeshBuilder.CreateSphere('player mouth',{diameter:.095,segments:8},scene);mouth.parent=player;mouth.position.set(0,1.81,.275);mouth.scaling.set(1,.35,.35);mouth.material=mouthMat;
  for(const side of [-1,1]){
-   const leg=B.MeshBuilder.CreateCapsule('leg',{height:.8,radius:.15},scene);leg.parent=player;leg.position.set(side*.19,.43,0);leg.material=pants;
-   const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=player;foot.position.set(side*.19,.12,.08);
-   const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=clothes;
+   const eye=B.MeshBuilder.CreateSphere('player eye '+side,{diameter:.09,segments:8},scene);eye.parent=player;eye.position.set(side*.115,1.99,.245);eye.scaling.z=.42;eye.material=eyeWhite;
+   const pupil=B.MeshBuilder.CreateSphere('player pupil '+side,{diameter:.045,segments:8},scene);pupil.parent=player;pupil.position.set(side*.115,1.99,.268);pupil.scaling.z=.4;pupil.material=pupilMatPlayer;
+   const brow=B.MeshBuilder.CreateBox('player eyebrow '+side,{width:.13,height:.035,depth:.035},scene);brow.parent=player;brow.position.set(side*.115,2.075,.25);brow.rotation.z=side*-.08;brow.material=browMat;
+   const leg=B.MeshBuilder.CreateCapsule('leg',{height:.8,radius:.15,tessellation:10},scene);leg.parent=player;leg.position.set(side*.19,.43,0);leg.material=pants;playerLegs.push(leg);
+   const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=player;foot.position.set(side*.19,.12,.08);playerFeet.push(foot);
+   const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12,tessellation:10},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=jacketMat;playerArms.push(arm);
+   const hand=B.MeshBuilder.CreateSphere('player hand '+side,{diameter:.19,segments:8},scene);hand.parent=player;hand.position.set(side*.44,.69,.025);hand.material=skin;playerHands.push(hand);
  }
+ const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
  // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
@@ -262,7 +279,7 @@
    residents.forEach(npc=>{if(npc.proceduralRoot)npc.proceduralRoot.setEnabled(true);});
   }
  }
- upgradeResidentModels();
+ // Keep procedural residents visible and fully interactive. The optional remote rigged-model swap is disabled until its cloned skeletons can be verified in-browser.
 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
@@ -416,7 +433,11 @@
      if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}
      player.rotation.y=Math.atan2(dx,dz);walk+=dt*10;
      player.position.y=Math.abs(Math.sin(walk))*.045;
-   }else{player.position.y=0}
+     playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*.42);
+     playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*.28;arm.rotation.z=(i===0?-.15:.15);});
+     playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
+     playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
+   }else{player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
    updateEnvironment(now,dt);updateResidents(dt,now);refreshInteraction();updateMap();
