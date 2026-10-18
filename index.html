@@ -322,6 +322,15 @@
    const animations=imported.skeletons.map(skeleton=>scene.beginAnimation(skeleton,0,120,true,1));
    if(!animations.length||animations.some(anim=>!anim))throw new Error("The imported player skeleton could not animate.");
    playerRigAnimatables=animations;
+   // If this browser already has a saved custom look, keep the procedural avatar active.
+   let hasSavedAppearance=false;
+   try{const saved=JSON.parse(localStorage.getItem('aroundTheWorld.newHorizon.save.v1')||'null');hasSavedAppearance=!!(saved&&saved.appearance);}catch(_){}
+   if(hasSavedAppearance){
+    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
+    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose();
+    proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
+    return;
+   }
    // Switch only after the complete hierarchy is imported and initialized.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
