@@ -346,6 +346,7 @@
     else if(npc.action==='look'){npc.root.rotation.y+=Math.sin(npc.lookPhase*1.1+npc.phase)*dt*.45;}
     else if(npc.action==='chat'){npc.arms.forEach((arm,i)=>arm.rotation.x=Math.sin(npc.lookPhase*4+i)*.22);npc.root.rotation.y+=Math.sin(npc.lookPhase*2)*dt*.12;}
     else if(npc.action==='wave'){npc.arms[1].rotation.z=.95+Math.sin(npc.lookPhase*8)*.2;npc.arms[1].rotation.x=-.35;}
+    else if(npc.action==='stretch'){npc.arms[0].rotation.z=-.72+Math.sin(npc.lookPhase*1.8)*.06;npc.arms[1].rotation.z=.72-Math.sin(npc.lookPhase*1.8)*.06;npc.arms.forEach(arm=>arm.rotation.x=-.28+Math.sin(npc.lookPhase*1.5)*.05);}
     continue;
    }
    if(npc.phone)npc.phone.isVisible=false;npc.action='walk';
@@ -356,12 +357,12 @@
     let actions;
     if(night)actions=npc.routine==='park'?['look','idle','look']:['look','phone','idle','look'];
     else if(rushHour&&npc.routine==='commuter')actions=['look','idle','phone'];
-    else if(daytime&&npc.routine==='park')actions=['idle','look','chat'];
+    else if(daytime&&npc.routine==='park')actions=['idle','look','chat','stretch'];
     else if(evening&&npc.routine==='social')actions=['chat','wave','look'];
     else if(npc.routine==='errands')actions=['phone','look','idle','chat'];
     else actions=['look','phone','chat','wave','idle'];
     npc.action=actions[(npc.index+npc.target+Math.floor(hour/3))%actions.length];
-    const baseWait=npc.action==='chat'?(evening?4:2.8):npc.action==='wave'?1.8:npc.action==='phone'?(rushHour?1.3:2.8):npc.action==='idle'?(daytime&&npc.routine==='park'?4.5:2):1.2;
+    const baseWait=npc.action==='chat'?(evening?4:2.8):npc.action==='wave'?1.8:npc.action==='stretch'?3.8:npc.action==='phone'?(rushHour?1.3:2.8):npc.action==='idle'?(daytime&&npc.routine==='park'?4.5:2):1.2;
     npc.wait=baseWait+((npc.index+npc.target)%3)*.45;
     if(rushHour&&npc.routine==='commuter')npc.wait*=.55;
     if(night)npc.wait*=1.5;
