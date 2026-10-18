@@ -284,6 +284,16 @@
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
   for(const npc of residents){
+   // Residents change their walking circuit as their daily schedule changes.
+   const routeKey=npc.routine==='commuter'?(night?1:0):npc.routine==='park'?(daytime?4:1):npc.routine==='social'?(evening?2:0):npc.routine==='errands'?(daytime?3:(evening?2:1)):0;
+   if(npc.routeKey!==routeKey){
+    const nextRoute=residentRoutes[routeKey];
+    let nearest=0,nearestDist=Infinity;
+    for(let i=0;i<nextRoute.length;i++){const d=Math.hypot(nextRoute[i][0]-npc.root.position.x,nextRoute[i][1]-npc.root.position.z);if(d<nearestDist){nearestDist=d;nearest=i;}}
+    npc.points=nextRoute.map(p=>new B.Vector3(p[0],0,p[1]));
+    npc.target=(nearest+1)%npc.points.length;
+    npc.routeKey=routeKey;
+   }
    npc.lookPhase+=dt;
    if(npc.wait>0){
     if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
