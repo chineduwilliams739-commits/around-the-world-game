@@ -133,7 +133,7 @@
    const arm=B.MeshBuilder.CreateCapsule('traffic driver arm '+index+' '+side,{height:.65,radius:.105,tessellation:7},scene);arm.parent=driverRoot;arm.position.set(side*.27,1.05,.12);arm.rotation.z=side*.42;arm.material=driverClothes;driverArms.push(arm);
    const leg=B.MeshBuilder.CreateCapsule('traffic driver leg '+index+' '+side,{height:.65,radius:.12,tessellation:7},scene);leg.parent=driverRoot;leg.position.set(side*.14,.48,-.08);leg.material=driverClothes;driverLegs.push(leg);
   }
-  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0};
+  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0,driverGone:false};
  }
  const traffic=[
   createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:9.2}),
@@ -144,6 +144,7 @@
  function updateCarDrivers(dt){
   for(const car of traffic){
    const d=car.driverRoot;
+   if(car.driverGone){d.setEnabled(false);continue;}
    if(!car.fleeing){
     d.position.set(car.root.position.x,car.root.position.y,car.root.position.z);
     d.rotation.y=car.root.rotation.y;
@@ -160,7 +161,7 @@
    car.driverLegs[0].rotation.x=swing;car.driverLegs[1].rotation.x=-swing;
    car.driverArms[0].rotation.x=-swing*.8;car.driverArms[1].rotation.x=swing*.8;
    d.position.y=Math.abs(Math.sin(car.fleeTime*12))*.07;
-   if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;}
+   if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;car.driverGone=true;}
   }
  }
  function updateTraffic(dt){
@@ -490,9 +491,9 @@
      const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=null;camera.alpha=car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
    }else if(nearbyInteraction.action==='vehicleEnter'){
      activeVehicle=nearbyInteraction.vehicle;vehicleSpeed=0;activeVehicle.speedCurrent=0;
-     activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
-     activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.65,0,activeVehicle.root.position.z);
-     activeVehicle.driverRoot.rotation.y=activeVehicle.root.rotation.y;
+     if(!activeVehicle.driverGone){activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
+      activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.65,0,activeVehicle.root.position.z);
+      activeVehicle.driverRoot.rotation.y=activeVehicle.root.rotation.y;}
      player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);
      camera.lockedTarget=null;camera.alpha=activeVehicle.root.rotation.y-Math.PI/2;camera.beta=1.08;camera.radius=12;
      showToast('You pull the driver out. They scramble away as you take the wheel. Hold ▲ / W to accelerate; steer left or right.');return;
