@@ -307,15 +307,102 @@
   for(const root of instance.rootNodes||[]){add(root);if(root.getChildMeshes)root.getChildMeshes(false).forEach(add);}
   return found;
  }
+ // Give each rig its own palette and a lightweight procedural animation layer.
+ const characterPalettes=['#287b85','#b66d4f','#5278a8','#9a6b9f','#b08b45','#4e8a69','#b45f78','#64717d'];
+ function styleRigMaterials(meshes,styleIndex){
+  const tint=B.Color3.FromHexString(characterPalettes[((styleIndex%characterPalettes.length)+characterPalettes.length)%characterPalettes.length]);
+  const done=new Set();
+  for(const mesh of meshes){
+   const material=mesh.material;
+   const targets=material&&material.subMaterials?material.subMaterials:(material?[material]:[]);
+   for(const target of targets){
+    if(!target||done.has(target)||!target.albedoColor)continue;
+    done.add(target);
+    const label=((target.name||'')+' '+(mesh.name||'')).toLowerCase();
+    if(/skin|face|eye|hair|brow|mouth|teeth/.test(label))continue;
+    const amount=/shirt|coat|jacket|cloth|torso|body|outfit|dress|uniform|pant/.test(label)?.48:.18;
+    target.albedoColor=B.Color3.Lerp(target.albedoColor,tint,amount);
+    if('roughness' in target)target.roughness=Math.min(.92,Math.max(.34,target.roughness||.7));
+  }
+ }
+ }
+ function addCharacterStyle(rigRoot,scale,styleIndex){
+  const detailRoot=new B.TransformNode('characterStyle'+styleIndex,scene);
+  detailRoot.parent=rigRoot;
+  detailRoot.scaling.setAll(1/Math.max(.001,scale));
+  const darkMat=mat('style dark '+styleIndex,'#202832',.42);
+  const metalMat=mat('style metal '+styleIndex,'#d8b46c',.28);
+  const accentMat=mat('style accent '+styleIndex,characterPalettes[styleIndex%characterPalettes.length],.42);
+  const createBox=(name,w,h,d,x,y,z,material)=>{const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.parent=detailRoot;m.position.set(x,y,z);m.material=material;return m;};
+  // Tailored accents, accessories and personal style break up the repeated base silhouette.
+  if(styleIndex%4===0){
+   const cap=B.MeshBuilder.CreateSphere('style cap crown '+styleIndex,{diameter:.34,segments:12},scene);cap.parent=detailRoot;cap.position.set(0,1.72,-.005);cap.scaling.set(1,.46,1);cap.material=accentMat;
+   createBox('style cap brim '+styleIndex,.27,.035,.18,0,1.69,.105,darkMat);
+  }else if(styleIndex%4===1){
+   createBox('style glasses left '+styleIndex,.105,.065,.025,-.075,1.61,.145,darkMat);
+   createBox('style glasses right '+styleIndex,.105,.065,.025,.075,1.61,.145,darkMat);
+   createBox('style glasses bridge '+styleIndex,.055,.018,.025,0,1.61,.15,metalMat);
+  }else if(styleIndex%4===2){
+   createBox('style tie '+styleIndex,.09,.34,.035,0,1.27,.16,accentMat);
+   const knot=B.MeshBuilder.CreateSphere('style tie knot '+styleIndex,{diameter:.085,segments:8},scene);knot.parent=detailRoot;knot.position.set(0,1.46,.16);knot.scaling.y=.72;knot.material=metalMat;
+  }else{
+   const pendant=B.MeshBuilder.CreateTorus('style pendant '+styleIndex,{diameter:.11,thickness:.025,tessellation:12},scene);pendant.parent=detailRoot;pendant.position.set(0,1.39,.17);pendant.rotation.x=Math.PI/2;pendant.material=metalMat;
+  }
+  if(styleIndex%3===1){
+   createBox('style backpack '+styleIndex,.34,.42,.16,0,1.02,-.19,darkMat);
+   createBox('style backpack flap '+styleIndex,.27,.12,.025,0,1.19,-.105,accentMat);
+   createBox('style backpack strap left '+styleIndex,.045,.42,.035,-.13,1.06,-.08,accentMat);
+   createBox('style backpack strap right '+styleIndex,.045,.42,.035,.13,1.06,-.08,accentMat);
+  }else if(styleIndex%3===2){
+   createBox('style crossbody bag '+styleIndex,.25,.28,.1,.27,.91,-.02,darkMat);
+   createBox('style bag flap '+styleIndex,.21,.075,.025,.27,1.02,.04,metalMat);
+  }
+  return detailRoot;
+ }
+ function buildRigMotion(skeleton,seed){
+  if(!skeleton||!skeleton.bones)return null;
+  const bones=[];
+  for(const bone of skeleton.bones){
+   const name=(bone.name||'').toLowerCase();
+   let kind=null,weight=1;
+   if(/thigh|upleg|upper.?leg|calf|lower.?leg|(^|[^a-z])leg|foot|toe/.test(name)){kind='leg';if(/foot|toe/.test(name))weight=.22;else if(/calf|lower/.test(name))weight=.48;}
+   else if(/upper.?arm|forearm|shoulder|(^|[^a-z])arm|hand/.test(name)){kind='arm';if(/hand/.test(name))weight=.18;else if(/forearm/.test(name))weight=.45;}
+   else if(/spine|chest|hips|pelvis/.test(name)){kind='torso';weight=/hips|pelvis/.test(name)?.35:.65;}
+   else if(/neck|head/.test(name)){kind='head';weight=/neck/.test(name)?.45:.7;}
+   if(!kind||typeof bone.getRotationQuaternion!=='function'||typeof bone.setRotationQuaternion!=='function')continue;
+   try{const base=bone.getRotationQuaternion(B.Space.LOCAL);if(base)bones.push({bone,base:base.clone(),kind,weight});}catch(_){}
+  }
+  return bones.length?{bones,seed}:null;
+ }
+ function animateRigMotion(motion,time,moving,action,dt){
+  if(!motion)return;
+  const t=time/1000,phase=motion.seed*.83;
+  const gait=moving?Math.sin(t*8.8+phase):0;
+  const idle=Math.sin(t*1.65+phase);
+  for(const item of motion.bones){
+   let pitch=0,yaw=0,roll=0;
+   if(item.kind==='leg')pitch=gait*(action==='run'?.5:.34)*item.weight;
+   else if(item.kind==='arm'){
+    pitch=-gait*(action==='run'?.36:.24)*item.weight;
+    if(action==='chat'||action==='wave')pitch+=Math.sin(t*4+phase)*.14*item.weight;
+    if(action==='phone')pitch-=.32*item.weight;
+   }else if(item.kind==='torso'){pitch=Math.abs(gait)*.025;roll=idle*.025+(moving?Math.sin(t*8.8+phase)*.035:0);}
+   else if(item.kind==='head'){yaw=Math.sin(t*1.1+phase)*.08;pitch=idle*.025;}
+   const delta=B.Quaternion.RotationYawPitchRoll(yaw,pitch,roll);
+   item.bone.setRotationQuaternion(item.base.multiply(delta),B.Space.LOCAL);
+  }
+ }
  // Replace the primitive placeholder only after the bundled, textured, skinned GLB is ready.
  let playerRigAnimatables=[];
+ let playerRigMotion=null;
+ let playerRigScale=1;
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
   let instance=null,rigRoot=null;
   try{
    const container=await getCharacterContainer();
-   instance=container.instantiateModelsToScene(name=>name+"_player",false);
+   instance=container.instantiateModelsToScene(name=>name+"_player",true);
    const roots=[...(instance.rootNodes||[])];
    const visibleRigMeshes=characterMeshes(instance);
    if(!roots.length||!visibleRigMeshes.length||!instance.skeletons.length)throw new Error("The bundled character GLB did not provide visible skinned geometry.");
@@ -337,6 +424,10 @@
    visibleRigMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
    const animationGroups=instance.animationGroups||[];
    animationGroups.forEach(group=>group.start(true));
+   styleRigMaterials(visibleRigMeshes,0);
+   playerRigScale=scale;
+   addCharacterStyle(rigRoot,scale,0);
+   playerRigMotion=animationGroups.length?null:buildRigMotion(instance.skeletons[0],0);
    playerRigAnimatables=animationGroups;
    // Do not keep a mannequin placeholder just because this browser has a saved profile.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
@@ -419,7 +510,7 @@
    const proceduralRoot=npc.root;
    const spawn=proceduralRoot.position.clone();
    try{
-    instance=container.instantiateModelsToScene(name=>name+"_resident"+npc.index,false);
+    instance=container.instantiateModelsToScene(name=>name+"_resident"+npc.index,true);
     const roots=[...(instance.rootNodes||[])];
     const visibleMeshes=characterMeshes(instance);
     if(!roots.length||!visibleMeshes.length||!instance.skeletons.length)throw new Error("The bundled GLB has no visible skinned resident geometry.");
@@ -442,6 +533,9 @@
     visibleMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
     const animationGroups=instance.animationGroups||[];
     animationGroups.forEach(group=>group.start(true));
+    styleRigMaterials(visibleMeshes,npc.index+1);
+    addCharacterStyle(rigRoot,scale,npc.index+1);
+    npc.rigMotion=animationGroups.length?null:buildRigMotion(instance.skeletons[0],npc.index+1);
     npc.proceduralRoot=proceduralRoot;
     npc.root=rigRoot;
     npc.rigged=true;
@@ -474,6 +568,7 @@
    }
    npc.lookPhase+=dt;
    npc.socialCooldown=Math.max(0,(npc.socialCooldown||0)-dt);
+   animateRigMotion(npc.rigMotion,now,npc.wait<=0,npc.action,dt);
    if(npc.wait>0){
     if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
     npc.wait-=dt;if(!npc.rigged)npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;else npc.root.position.y=0;
@@ -768,12 +863,12 @@
      walk+=dt*(running?15:10);
      const stride=running?.54:.42,armSwing=running?.36:.28;
      player.position.y=playerRigLoaded?0:Math.abs(Math.sin(walk))*(running?.065:.045);
-     if(playerRigLoaded)playerRigAnimatables.forEach(anim=>{if(anim.paused)anim.restart();});
+     if(playerRigLoaded){playerRigAnimatables.forEach(anim=>{if(anim.paused)anim.restart();});animateRigMotion(playerRigMotion,now,true,running?"run":"walk",dt);}
      playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
      playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
      playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
      playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
-   }else{if(playerRigLoaded)playerRigAnimatables.forEach(anim=>{if(!anim.paused)anim.pause();});player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
+   }else{if(playerRigLoaded){playerRigAnimatables.forEach(anim=>{if(!anim.paused)anim.pause();});animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
