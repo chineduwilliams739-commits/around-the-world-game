@@ -365,8 +365,8 @@
   for(const bone of skeleton.bones){
    const name=(bone.name||'').toLowerCase();
    let kind=null,weight=1;
-   if(/thigh|upleg|upper.?leg|calf|lower.?leg|(^|[^a-z])leg|foot|toe/.test(name)){kind='leg';if(/foot|toe/.test(name))weight=.22;else if(/calf|lower/.test(name))weight=.48;}
-   else if(/upper.?arm|forearm|shoulder|(^|[^a-z])arm|hand/.test(name)){kind='arm';if(/hand/.test(name))weight=.18;else if(/forearm/.test(name))weight=.45;}
+   if(/thigh|upleg|upper.?leg|calf|lower.?leg|leg|foot|toe/.test(name)){kind='leg';if(/foot|toe/.test(name))weight=.22;else if(/calf|lower/.test(name))weight=.48;}
+   else if(/upper.?arm|forearm|shoulder|arm|hand/.test(name)){kind='arm';if(/hand/.test(name))weight=.18;else if(/forearm/.test(name))weight=.45;}
    else if(/spine|chest|hips|pelvis/.test(name)){kind='torso';weight=/hips|pelvis/.test(name)?.35:.65;}
    else if(/neck|head/.test(name)){kind='head';weight=/neck/.test(name)?.45:.7;}
    if(!kind||typeof bone.getRotationQuaternion!=='function'||typeof bone.setRotationQuaternion!=='function')continue;
