@@ -23,6 +23,8 @@
 
 .profile-actions .secondary{background:#162630;color:#dbe7ed}.profile-transfer{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.profile-transfer button{padding:11px;border:1px solid #ffffff20;border-radius:10px;background:#1b2d38;color:#dce8ee;font-size:12px;font-weight:800}.profile-transfer button:disabled{opacity:.45}
 .appearance-panel{margin-top:16px;padding:13px;border:1px solid #ffffff18;border-radius:13px;background:#ffffff06}.appearance-panel h3{margin:0 0 4px;font-size:13px;letter-spacing:.08em}.appearance-panel p{margin:0 0 10px;color:#aebfc9;font-size:11px;line-height:1.45}.appearance-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.appearance-grid label{margin:0;font-size:10px}.appearance-grid select{display:block;width:100%;margin-top:5px;padding:10px 8px;border:1px solid #ffffff2d;border-radius:9px;background:#0b141c;color:#fff;font:inherit}.appearance-apply{width:100%;margin-top:10px;padding:11px;border:1px solid #d9b56c88;border-radius:10px;background:#b78d45;color:#101820;font-weight:900}.profile-milestone{margin-top:8px;padding:10px;border-radius:10px;background:#ffffff08;color:#d7e4e9;font-size:11px;line-height:1.45}
+
+#modelDiagnostics{display:none;position:fixed;z-index:20;left:12px;right:12px;bottom:12px;max-width:620px;margin:auto;padding:14px;border:1px solid #e7b96b;border-radius:14px;background:#101820f5;box-shadow:0 8px 32px #0009;color:#f5f7fa;font-size:13px;line-height:1.45;overflow-wrap:anywhere}#modelDiagnostics strong{display:block;margin-bottom:6px;color:#ffd58a;font-size:14px}#modelDiagnosticsMessage{max-height:24vh;overflow:auto;white-space:pre-wrap;color:#e3eaf0}#retryCharacterModels{margin-top:10px;padding:10px 13px;border:0;border-radius:9px;background:#e7b96b;color:#101820;font-weight:800;font-size:13px}
 </style>
 </head>
 <body>
@@ -82,6 +84,8 @@
  <div class="map-guidance" id="mapGuidance">Destination: none selected. Choose a marked place above.</div>
 </section>
 <div class="interaction-hint" id="interactionHint">Press E to interact</div><div class="toast" id="toast"></div>
+<div id="modelDiagnostics" role="status" aria-live="polite"><strong id="modelDiagnosticsTitle">Character model status</strong><div id="modelDiagnosticsMessage">Checking character models…</div><button id="retryCharacterModels" type="button">Retry character models</button></div>
+
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 <script>
@@ -471,6 +475,7 @@
    playerRigLoaded=false;
    const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";
    console.error("3D PLAYER MODEL LOAD FAILED:",error);
+   setModelDiagnostics("Player character model failed",detail);
    showToast("3D character failed to load: "+detail,9000);
   }
  }
@@ -539,7 +544,7 @@
  async function upgradeResidentModels(){
   let container;
   try{container=await getCharacterContainer();}
-  catch(error){console.error("3D RESIDENT MODEL LOAD FAILED:",error);showToast("Resident model failed: "+((error&&(error.message||error.toString()))||"unknown error"),9000);return;}
+  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail);showToast("Resident model failed: "+detail,9000);return;}
   for(const npc of residents){
    let instance=null,rigRoot=null;
    const proceduralRoot=npc.root;
@@ -843,6 +848,28 @@
 
  let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
  function showToast(s,duration=1800){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',duration)}
+ function setModelDiagnostics(title,message){
+  const panel=document.getElementById("modelDiagnostics");
+  const heading=document.getElementById("modelDiagnosticsTitle");
+  const detail=document.getElementById("modelDiagnosticsMessage");
+  if(!panel||!heading||!detail)return;
+  heading.textContent=title;
+  detail.textContent=message;
+  panel.style.display="block";
+ }
+ document.getElementById("retryCharacterModels").addEventListener("click",()=>{
+  const button=document.getElementById("retryCharacterModels");
+  button.disabled=true;
+  button.textContent="Retrying…";
+  setModelDiagnostics("Retrying character models","Trying to download and load the clothed character model again…");
+  characterContainerPromise=null;
+  Promise.allSettled([upgradePlayerModel(),upgradeResidentModels()]).then(results=>{
+   button.disabled=false;
+   button.textContent="Retry character models";
+   const failed=results.some(result=>result.status==="rejected");
+   if(!failed&&playerRigLoaded)document.getElementById("modelDiagnostics").style.display="none";
+  });
+ });
  let last=performance.now(),walk=0,firstFrameRendered=false;
  // Never make the first playable frame depend on every external asset finishing.
  // Load the clothed CC0 rig asynchronously; the city remains playable during download.
