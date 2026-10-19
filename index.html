@@ -499,7 +499,7 @@
    const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:10},scene);arm.parent=armPivot;arm.position.set(0,-.32,0);arm.material=outfit;
    const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:8},scene);hand.parent=armPivot;hand.position.set(side*.01,-.72,.015);hand.material=skinMat;hands.push(hand);
   }
-  let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
+  let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=arms[1];phone.position.set(.015,-.62,.13);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
   root.position.set(route[0][0],0,route[0][1]);
   residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,name:residentNames[index],routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0,playerMeetings:0});
@@ -580,9 +580,9 @@
     npc.legs.forEach(leg=>leg.rotation.x*=.82);
     npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
     if(npc.phone)npc.phone.isVisible=npc.action==='phone';
-    if(npc.action==='phone'&&npc.phone){npc.arms[0].rotation.x=-.8;npc.arms[0].rotation.z=-.45;npc.root.rotation.y+=Math.sin(npc.lookPhase*1.3)*dt*.12;}
+    if(npc.action==='phone'&&npc.phone){npc.arms[1].rotation.x=-.8;npc.arms[1].rotation.z=.42;npc.root.rotation.y+=Math.sin(npc.lookPhase*1.3)*dt*.12;}
     else if(npc.action==='look'){npc.root.rotation.y+=Math.sin(npc.lookPhase*1.1+npc.phase)*dt*.45;}
-    else if(npc.action==='chat'){npc.arms.forEach((arm,i)=>arm.rotation.x=Math.sin(npc.lookPhase*4+i)*.22);npc.root.rotation.y+=Math.sin(npc.lookPhase*2)*dt*.12;}
+    else if(npc.action==='chat'){npc.arms.forEach((arm,i)=>{arm.rotation.x=-.18+Math.sin(npc.lookPhase*4+i)*.22;arm.rotation.z=(i===0?-.12:.12)+Math.sin(npc.lookPhase*2.6+i)*.14;});npc.root.rotation.y+=Math.sin(npc.lookPhase*2)*dt*.12;}
     else if(npc.action==='wave'){npc.arms[1].rotation.z=.95+Math.sin(npc.lookPhase*8)*.2;npc.arms[1].rotation.x=-.35;}
     else if(npc.action==='stretch'){npc.arms[0].rotation.z=-.72+Math.sin(npc.lookPhase*1.8)*.06;npc.arms[1].rotation.z=.72-Math.sin(npc.lookPhase*1.8)*.06;npc.arms.forEach(arm=>arm.rotation.x=-.28+Math.sin(npc.lookPhase*1.5)*.05);}
     continue;
