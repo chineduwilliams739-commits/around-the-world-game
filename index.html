@@ -462,13 +462,16 @@
    // Do not keep a mannequin placeholder just because this browser has a saved profile.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
-   console.info("Loaded bundled Quaternius player model",{meshCount:visibleRigMeshes.length,height,animationGroups:animationGroups.length});
+   console.info("Loaded clothed CC0 player model",{meshCount:visibleRigMeshes.length,height,animationGroups:animationGroups.length});
+   showToast("3D character model loaded",2200);
   }catch(error){
    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
    else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
    playerRigLoaded=false;
-   console.warn("Bundled player model failed; keeping the visible fallback avatar:",error);
+   const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";
+   console.error("3D PLAYER MODEL LOAD FAILED:",error);
+   showToast("3D character failed to load: "+detail,9000);
   }
  }
  // The external CC0 rig replaces the primitive fallback only after successful validation.
@@ -536,7 +539,7 @@
  async function upgradeResidentModels(){
   let container;
   try{container=await getCharacterContainer();}
-  catch(error){console.warn("Bundled resident model could not be loaded; keeping fallback residents.",error);return;}
+  catch(error){console.error("3D RESIDENT MODEL LOAD FAILED:",error);showToast("Resident model failed: "+((error&&(error.message||error.toString()))||"unknown error"),9000);return;}
   for(const npc of residents){
    let instance=null,rigRoot=null;
    const proceduralRoot=npc.root;
@@ -839,7 +842,7 @@
  });
 
  let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
- function showToast(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',1800)}
+ function showToast(s,duration=1800){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',duration)}
  let last=performance.now(),walk=0,firstFrameRendered=false;
  // Never make the first playable frame depend on every external asset finishing.
  // Load the clothed CC0 rig asynchronously; the city remains playable during download.
