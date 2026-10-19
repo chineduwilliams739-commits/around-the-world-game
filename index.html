@@ -286,14 +286,17 @@
    const eye=B.MeshBuilder.CreateSphere('player eye '+side,{diameter:.09,segments:8},scene);eye.parent=player;eye.position.set(side*.115,1.99,.245);eye.scaling.z=.42;eye.material=eyeWhite;
    const pupil=B.MeshBuilder.CreateSphere('player pupil '+side,{diameter:.045,segments:8},scene);pupil.parent=player;pupil.position.set(side*.115,1.99,.268);pupil.scaling.z=.4;pupil.material=pupilMatPlayer;
    const brow=B.MeshBuilder.CreateBox('player eyebrow '+side,{width:.13,height:.035,depth:.035},scene);brow.parent=player;brow.position.set(side*.115,2.075,.25);brow.rotation.z=side*-.08;brow.material=browMat;
-   const leg=B.MeshBuilder.CreateCapsule('leg',{height:.8,radius:.15,tessellation:10},scene);leg.parent=player;leg.position.set(side*.19,.43,0);leg.material=pants;playerLegs.push(leg);
-   const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=player;foot.position.set(side*.19,.12,.08);playerFeet.push(foot);
-   const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12,tessellation:10},scene);arm.parent=player;arm.position.set(side*.43,1.12,0);arm.rotation.z=side*-.15;arm.material=jacketMat;playerArms.push(arm);
-   const hand=B.MeshBuilder.CreateSphere('player hand '+side,{diameter:.19,segments:8},scene);hand.parent=player;hand.position.set(side*.44,.69,.025);hand.material=skin;playerHands.push(hand);
+   const legPivot=new B.TransformNode('player hip pivot '+side,scene);legPivot.parent=player;legPivot.position.set(side*.19,.76,0);playerLegs.push(legPivot);
+   const leg=B.MeshBuilder.CreateCapsule('leg',{height:.8,radius:.15,tessellation:10},scene);leg.parent=legPivot;leg.position.set(0,-.33,0);leg.material=pants;
+   const foot=box('foot',0,0,0,.25,.16,.42,shoe,false);foot.parent=legPivot;foot.position.set(0,-.64,.08);playerFeet.push(foot);
+   const armPivot=new B.TransformNode('player shoulder pivot '+side,scene);armPivot.parent=player;armPivot.position.set(side*.43,1.48,0);armPivot.rotation.z=side*-.15;playerArms.push(armPivot);
+   const arm=B.MeshBuilder.CreateCapsule('arm',{height:.85,radius:.12,tessellation:10},scene);arm.parent=armPivot;arm.position.set(0,-.36,0);arm.material=jacketMat;
+   const hand=B.MeshBuilder.CreateSphere('player hand '+side,{diameter:.19,segments:8},scene);hand.parent=armPivot;hand.position.set(side*.015,-.79,.025);hand.material=skin;playerHands.push(hand);
  }
  const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
- // Load the bundled Quaternius human once and instantiate rig-safe copies from the same asset container.
+ // Keep the clothed, articulated in-game avatar active. The bundled base GLB is not a complete dressed/animated character, so replacing this avatar with it caused the undressed, stiff look reported by the player.
+ /* Load the bundled Quaternius human only when a fully clothed animated asset is available. */
  let characterContainerPromise=null;
  function getCharacterContainer(){
   if(!characterContainerPromise){
@@ -441,7 +444,7 @@
    console.warn("Bundled player model failed; keeping the visible fallback avatar:",error);
   }
  }
- void upgradePlayerModel();
+ // Intentionally do not replace the clothed articulated player with the bare static GLB.
 
  // Resident characters: detailed rigged human models, with the original residents retained as a loading fallback. // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
@@ -487,12 +490,14 @@
   for(let b=0;b<3;b++){const button=B.MeshBuilder.CreateSphere('resident button '+index+' '+b,{diameter:.035,segments:6},scene);button.parent=root;button.position.set(0,1.31-b*.13,.32);button.material=gold;}
   const legs=[],feet=[],arms=[],hands=[];
   for(const side of [-1,1]){
-   const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.72,radius:.125,tessellation:8},scene);leg.parent=root;leg.position.set(side*.15,.39,0);leg.material=trousers;legs.push(leg);
-   const sole=B.MeshBuilder.CreateBox('residentSole'+index+'_'+side,{width:.205,height:.045,depth:.35},scene);sole.parent=root;sole.position.set(side*.15,.055,.085);sole.material=roof;
-   const foot=B.MeshBuilder.CreateBox('residentFoot'+index+'_'+side,{width:.2,height:.13,depth:.34},scene);foot.parent=root;foot.position.set(side*.15,.12,.08);foot.material=shoes;feet.push(foot);
-   const cuff=B.MeshBuilder.CreateCylinder('residentCuff'+index+'_'+side,{height:.13,diameter:.22,tessellation:8},scene);cuff.parent=root;cuff.position.set(side*.39,.81,0);cuff.rotation.z=side*-.12;cuff.material=outfit;
-   const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:10},scene);arm.parent=root;arm.position.set(side*.39,1.12,0);arm.rotation.z=side*-.12;arm.material=outfit;arms.push(arm);
-   const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:8},scene);hand.parent=root;hand.position.set(side*.4,.73,.015);hand.material=skinMat;hands.push(hand);
+   const legPivot=new B.TransformNode('resident hip pivot '+index+' '+side,scene);legPivot.parent=root;legPivot.position.set(side*.15,.72,0);legs.push(legPivot);
+   const leg=B.MeshBuilder.CreateCapsule('residentLeg'+index+'_'+side,{height:.72,radius:.125,tessellation:8},scene);leg.parent=legPivot;leg.position.set(0,-.31,0);leg.material=trousers;
+   const sole=B.MeshBuilder.CreateBox('residentSole'+index+'_'+side,{width:.205,height:.045,depth:.35},scene);sole.parent=legPivot;sole.position.set(0,-.665,.085);sole.material=roof;
+   const foot=B.MeshBuilder.CreateBox('residentFoot'+index+'_'+side,{width:.2,height:.13,depth:.34},scene);foot.parent=legPivot;foot.position.set(0,-.60,.08);foot.material=shoes;feet.push(foot);
+   const armPivot=new B.TransformNode('resident shoulder pivot '+index+' '+side,scene);armPivot.parent=root;armPivot.position.set(side*.39,1.45,0);armPivot.rotation.z=side*-.12;arms.push(armPivot);
+   const cuff=B.MeshBuilder.CreateCylinder('residentCuff'+index+'_'+side,{height:.13,diameter:.22,tessellation:8},scene);cuff.parent=armPivot;cuff.position.set(0,-.56,0);cuff.material=outfit;
+   const arm=B.MeshBuilder.CreateCapsule('residentArm'+index+'_'+side,{height:.72,radius:.105,tessellation:10},scene);arm.parent=armPivot;arm.position.set(0,-.32,0);arm.material=outfit;
+   const hand=B.MeshBuilder.CreateSphere('residentHand'+index+'_'+side,{diameter:.16,segments:8},scene);hand.parent=armPivot;hand.position.set(side*.01,-.72,.015);hand.material=skinMat;hands.push(hand);
   }
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=root;phone.position.set(.43,1.03,.11);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
@@ -551,7 +556,7 @@
    }
   }
  }
- void upgradeResidentModels();
+ // Keep residents in their clothed, articulated model until a complete clothed rigged asset replaces it.
 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
@@ -608,7 +613,7 @@
    const swing=Math.sin(now/(145/gaitRate)+npc.phase)*(.24+(npc.index%3)*.035);
    npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;npc.arms[0].rotation.x=-swing*.72;npc.arms[1].rotation.x=swing*.72;
    npc.arms[0].rotation.z=-.12+Math.sin(now/210+npc.phase)*.025;npc.arms[1].rotation.z=.12-Math.sin(now/210+npc.phase)*.025;
-   npc.hands[0].position.y=.73+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=.73-Math.sin(now/145+npc.phase)*.035;
+   npc.hands[0].position.y=-.72+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=-.72-Math.sin(now/145+npc.phase)*.035;
    npc.feet[0].rotation.x=npc.legs[0].rotation.x*.35;npc.feet[1].rotation.x=npc.legs[1].rotation.x*.35;
    if(!npc.rigged)npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;else npc.root.position.y=0;
   }
@@ -867,7 +872,7 @@
      playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
      playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
      playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
-     playerHands.forEach((hand,i)=>hand.position.y=.69+Math.sin(walk+(i*Math.PI))*.035);
+     playerHands.forEach((hand,i)=>hand.position.y=-.79+Math.sin(walk+(i*Math.PI))*.035);
    }else{if(playerRigLoaded){playerRigAnimatables.forEach(anim=>{if(!anim.paused)anim.pause();});animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
