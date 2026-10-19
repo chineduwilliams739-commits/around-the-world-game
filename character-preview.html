@@ -50,9 +50,9 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
   const asset=new URL(assetUrl);
   const rootUrl=asset.href.slice(0,asset.href.lastIndexOf('/')+1);
   const fileName=decodeURIComponent(asset.pathname.split('/').pop());
-  if(!/\\.glb$/i.test(fileName))throw new Error('Selected model does not point to a .glb file: '+assetUrl);
+  if(!/\.glb$/i.test(fileName))throw new Error('Selected model does not point to a .glb file: '+assetUrl);
   status.textContent='Loading '+(chosen.name||chosen.title||'free rigged character')+'…';
-  details.textContent='Catalog entries: '+models.length+'\\nSelected: '+(chosen.name||chosen.title||'adult character')+'\\nAsset URL: '+assetUrl+'\\nLoading model geometry, textures and rig…';
+  details.textContent='Catalog entries: '+models.length+'\nSelected: '+(chosen.name||chosen.title||'adult character')+'\nAsset URL: '+assetUrl+'\nLoading model geometry, textures and rig…';
   const imported=await BABYLON.SceneLoader.ImportMeshAsync(null,rootUrl,fileName,scene);
   const modelRoot=imported.meshes.find(m=>!m.parent)||imported.meshes[0];
   const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
