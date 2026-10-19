@@ -300,7 +300,7 @@
  let characterContainerPromise=null;
  function getCharacterContainer(){
   if(!characterContainerPromise){
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("./assets/","character.glb",scene).catch(error=>{characterContainerPromise=null;throw error;});
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("https://cdn.3dassets.dev/assets/32901/v1/","model.glb",scene).catch(error=>{characterContainerPromise=null;throw error;});
   }
   return characterContainerPromise;
  }
@@ -310,7 +310,17 @@
   for(const root of instance.rootNodes||[]){add(root);if(root.getChildMeshes)root.getChildMeshes(false).forEach(add);}
   return found;
  }
- // Give each rig its own palette and a lightweight procedural animation layer.
+ // CC0 clothed, rigged pedestrian model with idle, walk, run and grasp clips.
+ function setCharacterAnimation(groups,role,current){
+  if(!groups||!groups.length)return current;
+  const wanted=role==="run"?["run","jog"]:role==="walk"?["walk","walking","relaxed walk"]:role==="grasp"?["grasp"]:["idle","standing"];
+  let chosen=null;
+  for(const key of wanted){chosen=groups.find(g=>(g.name||"").toLowerCase().includes(key));if(chosen)break;}
+  if(!chosen)chosen=groups[0];
+  if(current===chosen&&chosen.isPlaying)return chosen;
+  groups.forEach(g=>{if(g===chosen){if(!g.isPlaying)g.start(true);else g.play(true);}else g.stop();});
+  return chosen;
+ }
  const characterPalettes=['#287b85','#b66d4f','#5278a8','#9a6b9f','#b08b45','#4e8a69','#b45f78','#64717d'];
  function styleRigMaterials(meshes,styleIndex){
   const tint=B.Color3.FromHexString(characterPalettes[((styleIndex%characterPalettes.length)+characterPalettes.length)%characterPalettes.length]);
@@ -397,6 +407,7 @@
  }
  // Replace the primitive placeholder only after the bundled, textured, skinned GLB is ready.
  let playerRigAnimatables=[];
+ let playerRigCurrentAnimation=null;
  let playerRigMotion=null;
  let playerRigScale=1;
  let playerRigLoaded=false;
@@ -426,7 +437,7 @@
    rigRoot.computeWorldMatrix(true);
    visibleRigMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
    const animationGroups=instance.animationGroups||[];
-   animationGroups.forEach(group=>group.start(true));
+   playerRigCurrentAnimation=setCharacterAnimation(animationGroups,"idle",null);
    styleRigMaterials(visibleRigMeshes,0);
    playerRigScale=scale;
    addCharacterStyle(rigRoot,scale,0);
@@ -444,7 +455,7 @@
    console.warn("Bundled player model failed; keeping the visible fallback avatar:",error);
   }
  }
- // Intentionally do not replace the clothed articulated player with the bare static GLB.
+ // The external CC0 rig replaces the primitive fallback only after successful validation.
 
  // Resident characters: detailed rigged human models, with the original residents retained as a loading fallback. // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
@@ -537,7 +548,7 @@
     rigRoot.computeWorldMatrix(true);
     visibleMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
     const animationGroups=instance.animationGroups||[];
-    animationGroups.forEach(group=>group.start(true));
+    npc.rigCurrentAnimation=setCharacterAnimation(animationGroups,"idle",null);
     styleRigMaterials(visibleMeshes,npc.index+1);
     addCharacterStyle(rigRoot,scale,npc.index+1);
     npc.rigMotion=animationGroups.length?null:buildRigMotion(instance.skeletons[0],npc.index+1);
@@ -556,7 +567,7 @@
    }
   }
  }
- // Keep residents in their clothed, articulated model until a complete clothed rigged asset replaces it.
+ // Keep the complete procedural resident visible until each clothed rig validates successfully.
 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
@@ -574,8 +585,8 @@
    npc.lookPhase+=dt;
    npc.socialCooldown=Math.max(0,(npc.socialCooldown||0)-dt);
    animateRigMotion(npc.rigMotion,now,npc.wait<=0,npc.action,dt);
+   if(npc.rigged&&npc.rigAnimations)npc.rigCurrentAnimation=setCharacterAnimation(npc.rigAnimations,npc.wait>0?"idle":"walk",npc.rigCurrentAnimation);
    if(npc.wait>0){
-    if(npc.rigAnimations)npc.rigAnimations.forEach(a=>a.pause());
     npc.wait-=dt;if(!npc.rigged)npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;else npc.root.position.y=0;
     npc.legs.forEach(leg=>leg.rotation.x*=.82);
     npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
@@ -588,7 +599,7 @@
     continue;
    }
    if(npc.phone)npc.phone.isVisible=false;npc.action='walk';
-   if(npc.rigAnimations)npc.rigAnimations.forEach(a=>{if(a.paused)a.restart();});
+   if(npc.rigged&&npc.rigAnimations)npc.rigCurrentAnimation=setCharacterAnimation(npc.rigAnimations,"walk",npc.rigCurrentAnimation);
    const target=npc.points[npc.target],dx=target.x-npc.root.position.x,dz=target.z-npc.root.position.z,dist=Math.hypot(dx,dz);
    if(dist<.35){
     npc.target=(npc.target+1)%npc.points.length;
@@ -666,7 +677,7 @@
   appearance={skin:allowed.skin.includes(next.skin)?next.skin:appearanceDefaults.skin,outfit:allowed.outfit.includes(next.outfit)?next.outfit:appearanceDefaults.outfit,hair:allowed.hair.includes(next.hair)?next.hair:appearanceDefaults.hair};
   skin.albedoColor=B.Color3.FromHexString(appearance.skin);clothes.albedoColor=B.Color3.FromHexString(appearance.outfit);jacketMat.albedoColor=B.Color3.FromHexString(appearance.outfit);hair.albedoColor=B.Color3.FromHexString(appearance.hair);
   ['appearanceSkin','appearanceOutfit','appearanceHair'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=[appearance.skin,appearance.outfit,appearance.hair][i];});
-  if(playerRigLoaded){playerRigAnimatables.forEach(a=>a.stop());const rig=player.getChildren().find(c=>c.name==='playerRigRoot');if(rig)rig.setEnabled(false);player.getChildMeshes(false).forEach(m=>m.setEnabled(true));playerRigLoaded=false;}
+  if(playerRigLoaded){const rig=player.getChildren().find(c=>c.name==='playerRigRoot');if(rig)rig.setEnabled(true);playerRigLoaded=true;}
  }
  document.getElementById('appearanceApply').addEventListener('click',()=>{applyAppearance({skin:document.getElementById('appearanceSkin').value,outfit:document.getElementById('appearanceOutfit').value,hair:document.getElementById('appearanceHair').value});document.getElementById('profileSaveNote').textContent='Your look is applied. Save your profile to keep it; it will also be included in the next autosave.';});
  applyAppearance(appearance);
@@ -816,6 +827,9 @@
  function showToast(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',1800)}
  let last=performance.now(),walk=0,firstFrameRendered=false;
  // Never make the first playable frame depend on every external asset finishing.
+ // Load the clothed CC0 rig asynchronously; the city remains playable during download.
+ upgradePlayerModel();
+ upgradeResidentModels();
  // The rigged resident model is optional; the procedural city can render immediately.
  engine.runRenderLoop(()=>{
    const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
@@ -868,12 +882,12 @@
      walk+=dt*(running?15:10);
      const stride=running?.54:.42,armSwing=running?.36:.28;
      player.position.y=playerRigLoaded?0:Math.abs(Math.sin(walk))*(running?.065:.045);
-     if(playerRigLoaded){playerRigAnimatables.forEach(anim=>{if(anim.paused)anim.restart();});animateRigMotion(playerRigMotion,now,true,running?"run":"walk",dt);}
+     if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,running?"run":"walk",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,true,running?"run":"walk",dt);}
      playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
      playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
      playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
      playerHands.forEach((hand,i)=>hand.position.y=-.79+Math.sin(walk+(i*Math.PI))*.035);
-   }else{if(playerRigLoaded){playerRigAnimatables.forEach(anim=>{if(!anim.paused)anim.pause();});animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
+   }else{if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,"idle",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
    camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
