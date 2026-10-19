@@ -292,70 +292,66 @@
  }
  const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
- // Optional rigged 3D player model. Keep the procedural character as a safe fallback.
+ // Load the bundled Quaternius human once and instantiate rig-safe copies from the same asset container.
+ let characterContainerPromise=null;
+ function getCharacterContainer(){
+  if(!characterContainerPromise){
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("./assets/","character.glb",scene).catch(error=>{characterContainerPromise=null;throw error;});
+  }
+  return characterContainerPromise;
+ }
+ function characterMeshes(instance){
+  const found=[],seen=new Set();
+  const add=mesh=>{if(mesh&&typeof mesh.getTotalVertices==="function"&&mesh.getTotalVertices()>0&&!seen.has(mesh)){seen.add(mesh);found.push(mesh);}};
+  for(const root of instance.rootNodes||[]){add(root);if(root.getChildMeshes)root.getChildMeshes(false).forEach(add);}
+  return found;
+ }
+ // Replace the primitive placeholder only after the bundled, textured, skinned GLB is ready.
  let playerRigAnimatables=[];
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
-  let imported=null,rigRoot=null;
+  let instance=null,rigRoot=null;
   try{
-   imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
-   const modelRoot=imported.meshes.find(mesh=>mesh.name==="him")||imported.meshes[0];
-   const visibleRigMeshes=imported.meshes.filter(mesh=>mesh.getTotalVertices()>0);
-   if(!modelRoot||visibleRigMeshes.length<4||!imported.skeletons.length)throw new Error("The imported rig did not contain the expected complete multi-mesh body.");
-   // Transform a wrapper, not the skinned import root: changing a skinned mesh's
-   // own scale can separate its geometry from the skeleton's bind pose.
+   const container=await getCharacterContainer();
+   instance=container.instantiateModelsToScene(name=>name+"_player",false);
+   const roots=[...(instance.rootNodes||[])];
+   const visibleRigMeshes=characterMeshes(instance);
+   if(!roots.length||!visibleRigMeshes.length||!instance.skeletons.length)throw new Error("The bundled character GLB did not provide visible skinned geometry.");
    rigRoot=new B.TransformNode("playerRigRoot",scene);
    rigRoot.parent=player;
    rigRoot.position.set(0,0,0);
    rigRoot.rotation.y=Math.PI;
    rigRoot.scaling.setAll(1);
-   modelRoot.parent=rigRoot;
-   modelRoot.position.set(0,0,0);
-   modelRoot.computeWorldMatrix(true);
-   visibleRigMeshes.forEach(mesh=>{
-    mesh.setEnabled(true);
-    mesh.isVisible=true;
-    mesh.visibility=1;
-    mesh.isPickable=false;
-    mesh.checkCollisions=false;
-    mesh.computeWorldMatrix(true);
-   });
+   roots.forEach(root=>{root.parent=rigRoot;root.setEnabled(true);});
+   visibleRigMeshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;mesh.computeWorldMatrix(true);});
+   const modelRoot=roots[0];
    const bounds=modelRoot.getHierarchyBoundingVectors(true);
    const height=bounds.max.y-bounds.min.y;
-   if(!Number.isFinite(height)||height<0.5)throw new Error("The imported body bounds are incomplete.");
+   if(!Number.isFinite(height)||height<0.5)throw new Error("The bundled character bounds are invalid (height "+height+").");
    const scale=1.82/height;
    rigRoot.scaling.setAll(scale);
    rigRoot.position.y=-bounds.min.y*scale;
    rigRoot.computeWorldMatrix(true);
    visibleRigMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
-   const animations=imported.skeletons.map(skeleton=>scene.beginAnimation(skeleton,0,120,true,1));
-   if(!animations.length||animations.some(anim=>!anim))throw new Error("The imported player skeleton could not animate.");
-   playerRigAnimatables=animations;
-   // If this browser already has a saved custom look, keep the procedural avatar active.
-   let hasSavedAppearance=false;
-   try{const saved=JSON.parse(localStorage.getItem('aroundTheWorld.newHorizon.save.v1')||'null');hasSavedAppearance=!!(saved&&saved.appearance);}catch(_){}
-   if(hasSavedAppearance){
-    imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
-    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose();
-    proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
-    return;
-   }
-   // Switch only after the complete hierarchy is imported and initialized.
+   const animationGroups=instance.animationGroups||[];
+   animationGroups.forEach(group=>group.start(true));
+   playerRigAnimatables=animationGroups;
+   // Do not keep a mannequin placeholder just because this browser has a saved profile.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
-   console.info("Loaded complete rigged 3D player model",{meshCount:visibleRigMeshes.length,height});
+   console.info("Loaded bundled Quaternius player model",{meshCount:visibleRigMeshes.length,height,animationGroups:animationGroups.length});
   }catch(error){
-   if(imported)imported.meshes.forEach(mesh=>{if(!mesh.isDisposed())mesh.dispose(false,false);});
-   if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,false);
+   if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
+   else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
    playerRigLoaded=false;
-   console.warn("Keeping the complete procedural player avatar because the rigged model failed:",error);
+   console.warn("Bundled player model failed; keeping the visible fallback avatar:",error);
   }
  }
  void upgradePlayerModel();
 
- // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
+ // Resident characters: detailed rigged human models, with the original residents retained as a loading fallback. // Resident characters: more detailed low-poly people with facial features, hands, footwear and expressive routines.
  const npcPalette=['#bd7658','#567da0','#9273a9','#c3a45f','#568a71','#b36f89'];
  const npcMaterials=npcPalette.map((c,i)=>mat('resident outfit '+i,c));
  const npcSkinMats=['#b77d5b','#80543e','#d0a17c','#9b684e'].map((c,i)=>mat('resident skin '+i,c));
@@ -412,61 +408,55 @@
   residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,name:residentNames[index],routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0,playerMeetings:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
- // Upgrade residents to a free, openly licensed, rigged 3D human model.
- // BabylonJS Assets' Dude model is CC BY 4.0; see the visible attribution below.
- // Procedural residents remain as a fallback if the external asset cannot load.
+ // Upgrade all residents using instances of the same local GLB; the asset is fetched only once.
  async function upgradeResidentModels(){
-  // Import a complete independent hierarchy for every resident. Cloning skinned
-  // mesh pieces and skeletons separately can detach the skin from its bone bind poses.
+  let container;
+  try{container=await getCharacterContainer();}
+  catch(error){console.warn("Bundled resident model could not be loaded; keeping fallback residents.",error);return;}
   for(const npc of residents){
-   let imported=null;
+   let instance=null,rigRoot=null;
+   const proceduralRoot=npc.root;
+   const spawn=proceduralRoot.position.clone();
    try{
-    imported=await B.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
-    // The Dude asset's hierarchy root is named "him"; meshes[0] is not
-    // guaranteed to be that root on every device/browser import path.
-    const modelRoot=imported.meshes.find(m=>m.name==="him")||imported.meshes.find(m=>!m.parent)||imported.meshes[0];
-    const visibleMeshes=imported.meshes.filter(m=>m.getTotalVertices()>0);
-    if(!modelRoot||visibleMeshes.length<4||!imported.skeletons.length)throw new Error("No complete rigged resident hierarchy was imported.");
-    // Keep the imported skinned hierarchy untouched; apply size and ground
-    // alignment to its wrapper, matching the safer player-model setup.
-    const rigRoot=new B.TransformNode("residentRigRoot"+npc.index,scene);
-    rigRoot.position.copyFrom(npc.root.position);
-    rigRoot.rotation.y=npc.root.rotation.y;
-    rigRoot.scaling.setAll(1);
-    modelRoot.parent=rigRoot;
-    modelRoot.position.set(0,0,0);
-    modelRoot.rotation.y=Math.PI;
-    modelRoot.computeWorldMatrix(true);
-    imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;m.checkCollisions=false;m.computeWorldMatrix(true);});
+    instance=container.instantiateModelsToScene(name=>name+"_resident"+npc.index,false);
+    const roots=[...(instance.rootNodes||[])];
+    const visibleMeshes=characterMeshes(instance);
+    if(!roots.length||!visibleMeshes.length||!instance.skeletons.length)throw new Error("The bundled GLB has no visible skinned resident geometry.");
+    rigRoot=new B.TransformNode("residentRigRoot"+npc.index,scene);
+    rigRoot.position.copyFrom(spawn);
+    rigRoot.rotation.y=proceduralRoot.rotation.y;
+    roots.forEach(root=>{root.parent=rigRoot;root.setEnabled(true);});
+    visibleMeshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;mesh.computeWorldMatrix(true);});
+    const modelRoot=roots[0];
     const bounds=modelRoot.getHierarchyBoundingVectors(true);
     const height=bounds.max.y-bounds.min.y;
     const targetHeight=1.82+((npc.index%3)-1)*.035;
-    if(!Number.isFinite(height)||height<0.5)throw new Error("Resident body bounds are incomplete.");
+    if(!Number.isFinite(height)||height<0.5)throw new Error("Resident model bounds are invalid (height "+height+").");
     const scale=targetHeight/height;
     rigRoot.scaling.setAll(scale);
-    rigRoot.position.y=-bounds.min.y*scale;
+    rigRoot.position.x=spawn.x;
+    rigRoot.position.z=spawn.z;
+    rigRoot.position.y=spawn.y-bounds.min.y*scale;
     rigRoot.computeWorldMatrix(true);
-    imported.meshes.forEach(m=>{if(m.getTotalVertices()>0)m.refreshBoundingInfo(true);});
-    const animations=imported.skeletons.map(s=>scene.beginAnimation(s,0,120,true,(npc.index%3===0?1:.9)));
-    if(!animations.length)throw new Error("Resident skeleton animation could not start.");
-    const proceduralRoot=npc.root;
+    visibleMeshes.forEach(mesh=>mesh.refreshBoundingInfo(true));
+    const animationGroups=instance.animationGroups||[];
+    animationGroups.forEach(group=>group.start(true));
     npc.proceduralRoot=proceduralRoot;
     npc.root=rigRoot;
     npc.rigged=true;
-    npc.rigAnimations=animations;
+    npc.rigAnimations=animationGroups;
     if(npc.phone)npc.phone.setEnabled(false);
     if(npc.bag)npc.bag.setEnabled(false);
     proceduralRoot.setEnabled(false);
-    console.info("Loaded independent rigged resident",npc.index);
+    console.info("Loaded bundled rigged resident",{index:npc.index,meshes:visibleMeshes.length,height,animationGroups:animationGroups.length});
    }catch(error){
-    console.warn("Resident rig upgrade failed; keeping the complete procedural resident:",npc.index,error);
-    if(imported)imported.meshes.forEach(m=>{if(!m.isDisposed())m.dispose(false,false);});
+    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
+    else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
+    console.warn("Resident model instance failed; keeping this resident's complete fallback:",npc.index,error);
    }
   }
  }
- // Use the lightweight procedural residents on all devices. Importing eight separate rigged
- // characters proved too resource-heavy and unreliable on some mobile browsers; the
- // complete resident meshes above remain visible on mobile and desktop.
+ void upgradeResidentModels();
 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
