@@ -40,6 +40,7 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
   if(!catalogResponse.ok)throw new Error('Free character catalog returned HTTP '+catalogResponse.status);
   const catalog=await catalogResponse.json();
   const models=Array.isArray(catalog.models)?catalog.models:[];
+  if(!models.length)throw new Error('Catalog response has no models array. Top-level keys: '+Object.keys(catalog).join(', '));
   const pickText=m=>[m.name,m.title,m.category,m.collection,m.description].filter(Boolean).join(' ').toLowerCase();
   const chosen=models.find(m=>/businesswoman 01/.test(pickText(m))&&m.glb)
     ||models.find(m=>/businesswoman/.test(pickText(m))&&m.glb)
