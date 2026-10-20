@@ -77,18 +77,17 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
   const motionEntries=bones.map(entry=>{
     const n=entry.name.toLowerCase();
     let kind='';
-    if(/left.*(thigh|upleg|leg|calf|shin|foot)|(^|[_ .-])l([_ .-]|$).*(thigh|leg|foot)|thigh.*left|leg.*left/.test(n))kind='legL';
-    else if(/right.*(thigh|upleg|leg|calf|shin|foot)|(^|[_ .-])r([_ .-]|$).*(thigh|leg|foot)|thigh.*right|leg.*right/.test(n))kind='legR';
-    else if(/left.*(arm|shoulder|forearm|hand)|(^|[_ .-])l([_ .-]|$).*(arm|shoulder|hand)|arm.*left/.test(n))kind='armL';
-    else if(/right.*(arm|shoulder|forearm|hand)|(^|[_ .-])r([_ .-]|$).*(arm|shoulder|hand)|arm.*right/.test(n))kind='armR';
+    if(/\\b(l|left)\\b.*(thigh|upleg|leg|calf|shin|foot)|\\b(thigh|upleg|leg|calf|shin|foot).*\\b(l|left)\\b/.test(n))kind='legL';
+    else if(/\\b(r|right)\\b.*(thigh|upleg|leg|calf|shin|foot)|\\b(thigh|upleg|leg|calf|shin|foot).*\\b(r|right)\\b/.test(n))kind='legR';
+    else if(/\\b(l|left)\\b.*(upperarm|arm|clavicle|shoulder|forearm|hand)|\\b(upperarm|arm|clavicle|shoulder|forearm|hand).*\\b(l|left)\\b/.test(n))kind='armL';
+    else if(/\\b(r|right)\\b.*(upperarm|arm|clavicle|shoulder|forearm|hand)|\\b(upperarm|arm|clavicle|shoulder|forearm|hand).*\\b(r|right)\\b/.test(n))kind='armR';
     else if(/head|neck/.test(n))kind='head';
     else if(/spine|chest|hips|pelvis/.test(n))kind='torso';
     if(!kind)return null;
-    let base=null;
-    try{base=entry.bone.getRotationQuaternion(BABYLON.Space.LOCAL);}catch(_){}
-    if(!base&&entry.bone.rotationQuaternion)base=entry.bone.rotationQuaternion.clone();
-    if(!base)return null;
-    return {bone:entry.bone,base:base.clone(),kind};
+    let baseEuler=null;
+    try{baseEuler=entry.bone.getRotation(BABYLON.Space.LOCAL);}catch(_){}
+    if(!baseEuler)baseEuler=new BABYLON.Vector3(0,0,0);
+    return {bone:entry.bone,baseEuler:baseEuler.clone(),kind};
   }).filter(Boolean);
   if(imported.skeletons.length&&bones.length){
     rigTest={entries:motionEntries,bones,startedAt:0};
@@ -97,7 +96,7 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
     testMotion.onclick=()=>{
       rigTestActive=!rigTestActive;
       if(rigTestActive){rigTest.startedAt=performance.now();testMotion.textContent='Stop test motion';}
-      else{rigTest.entries.forEach(e=>{try{e.bone.setRotationQuaternion(e.base,BABYLON.Space.LOCAL);}catch(_){}});testMotion.textContent='Start basic rig-motion test';}
+      else{rigTest.entries.forEach(e=>{try{e.bone.setRotation(e.baseEuler,BABYLON.Space.LOCAL);}catch(_){}});testMotion.textContent='Start basic rig-motion test';}
     };
   }else{
     testMotion.textContent='No usable skeleton found';
@@ -122,9 +121,10 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
       else if(e.kind==='head')yaw=Math.sin(t*1.1)*.035;
       else if(e.kind==='torso')yaw=Math.sin(phase)*.025;
       try{
-        const delta=BABYLON.Quaternion.RotationYawPitchRoll(yaw,pitch,roll);
-        e.bone.setRotationQuaternion(e.base.multiply(delta),BABYLON.Space.LOCAL);
-      }catch(err){console.warn('Could not apply test motion to bone',err);}
+        // Apply a small additive Euler rotation to the bone's local bind rotation.
+        // This deliberately tests the rig without relying on nonexistent animation clips.
+        e.bone.setRotation(new BABYLON.Vector3(e.baseEuler.x+pitch,e.baseEuler.y+yaw,e.baseEuler.z+roll),BABYLON.Space.LOCAL);
+      }catch(err){console.warn('Could not apply test motion to bone '+e.bone.name,err);}
     });
   }
   scene.render();
