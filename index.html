@@ -300,11 +300,11 @@
  const pocket=B.MeshBuilder.CreateBox('player jacket pocket',{width:.12,height:.14,depth:.025},scene);pocket.parent=player;pocket.position.set(-.2,1.14,.335);pocket.material=jacketMat;
 
  // Keep the clothed, articulated in-game avatar active. The bundled base GLB is not a complete dressed/animated character, so replacing this avatar with it caused the undressed, stiff look reported by the player.
- /* Load the bundled Quaternius human only when a fully clothed animated asset is available. */
+ /* Load a CC0, clothed, rigged human with a looping animation from the Innerscene GLB library. */
  let characterContainerPromise=null;
  function getCharacterContainer(){
   if(!characterContainerPromise){
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("https://cdn.3dassets.dev/assets/32901/v1/","model.glb",scene).catch(error=>{characterContainerPromise=null;throw error;});
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("", "https://www.innerscene.com/api/library/jog-maya-3d-person-animated-0e72686c/download", scene).catch(error=>{characterContainerPromise=null;throw error;});
   }
   return characterContainerPromise;
  }
