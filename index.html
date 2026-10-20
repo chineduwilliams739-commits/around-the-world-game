@@ -304,7 +304,7 @@
  let characterContainerPromise=null;
  function getCharacterContainer(){
   if(!characterContainerPromise){
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("", "https://www.innerscene.com/api/library/jog-maya-3d-person-animated-0e72686c/download", scene).catch(error=>{characterContainerPromise=null;throw error;});
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("assets/", "jog-maya-3d-person-animated.glb", scene).catch(error=>{characterContainerPromise=null;throw error;});
   }
   return characterContainerPromise;
  }
