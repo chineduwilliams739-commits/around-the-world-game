@@ -361,7 +361,13 @@
  let characterContainerPromise=null;
  function getCharacterContainer(){
   if(!characterContainerPromise){
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync("assets/", "jog-maya-3d-person-animated.glb", scene).catch(error=>{characterContainerPromise=null;throw error;});
+   // Resolve relative to the deployed page so GitHub Pages project paths and local previews both work.
+   const assetDirectory=new URL("./assets/",document.baseURI).href;
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync(assetDirectory,"jog-maya-3d-person-animated.glb",scene).then(container=>{
+    if(!container||!container.rootNodes||!container.rootNodes.length)throw new Error("The character GLB loaded but contained no root nodes.");
+    if(!container.skeletons||!container.skeletons.length)throw new Error("The character GLB contains no rig/skeleton; animated residents cannot be created.");
+    return container;
+   }).catch(error=>{characterContainerPromise=null;throw error;});
   }
   return characterContainerPromise;
  }
@@ -558,6 +564,8 @@
  ];
  const residents=[];
  const residentNames=['Amara','Tobi','Zara','Kelechi','Maya','Chidi','Nneka','David'];
+ let residentRigLoadedCount=0;
+ let residentRigFailures=[];
  function createResident(index,route){
   const root=new B.TransformNode('residentRoot'+index,scene);
   const outfit=npcMaterials[index%npcMaterials.length],skinMat=npcSkinMats[index%npcSkinMats.length],hairMat=npcHairMats[index%npcHairMats.length],trousers=npcPantsMats[index%npcPantsMats.length],shoes=npcShoeMats[index%npcShoeMats.length];
@@ -600,9 +608,11 @@
  // Upgrade all residents using instances of the same local GLB; the asset is fetched only once.
  async function upgradeResidentModels(){
   let container;
+  residentRigLoadedCount=0;residentRigFailures=[];
   try{container=await getCharacterContainer();}
-  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail);showToast("Resident model failed: "+detail,9000);return;}
+  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail+"\\nAsset URL: "+new URL("./assets/jog-maya-3d-person-animated.glb",document.baseURI).href);showToast("Resident model failed to load. See the character diagnostics panel.",9000);throw error;}
   for(const npc of residents){
+   if(npc.rigged){residentRigLoadedCount++;continue;}
    let instance=null,rigRoot=null;
    const proceduralRoot=npc.root;
    const spawn=proceduralRoot.position.clone();
@@ -639,12 +649,21 @@
     if(npc.phone)npc.phone.setEnabled(false);
     if(npc.bag)npc.bag.setEnabled(false);
     proceduralRoot.setEnabled(false);
+    residentRigLoadedCount++;
     console.info("Loaded bundled rigged resident",{index:npc.index,meshes:visibleMeshes.length,height,animationGroups:animationGroups.length});
    }catch(error){
     if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
     else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
-    console.warn("Resident model instance failed; keeping this resident's complete fallback:",npc.index,error);
+    const detail=(error&&(error.message||error.toString()))||"unknown resident instance error";
+    residentRigFailures.push(residentNames[npc.index]+": "+detail);
+    console.error("RESIDENT MODEL INSTANCE FAILED:",npc.index,detail,error);
    }
+  }
+  if(residentRigFailures.length){
+   setModelDiagnostics("Realistic residents loaded: "+residentRigLoadedCount+"/"+residents.length,"Some residents are still using fallback models.\\n"+residentRigFailures.join("\\n"));
+   showToast("Only "+residentRigLoadedCount+" of "+residents.length+" realistic resident models loaded.",9000);
+  }else if(playerRigLoaded){
+   const panel=document.getElementById("modelDiagnostics");if(panel)panel.style.display="none";
   }
  }
  // Keep the complete procedural resident visible until each clothed rig validates successfully.
