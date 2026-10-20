@@ -301,7 +301,7 @@
    const bloom=B.MeshBuilder.CreateSphere('planter flower accent',{diameter:.28,segments:7},scene);bloom.position.set(p.x+.2,1.24,p.z-.2);bloom.material=flowerMat;
  }
  // Bus stops on the two long sides of Central Avenue.
- for(const p of [{x:-13.3,z:-31},{x:13.3,z:31}]){
+ for(const p of [{x:-13.3,z:-44},{x:13.3,z:44}]){
    box('bus shelter platform',p.x,.12,p.z,4.6,.2,2.1,sidewalk,false);
    for(const dx of [-1.9,1.9]) for(const dz of [-.75,.75]){
      const post=B.MeshBuilder.CreateCylinder('bus shelter post',{height:2.25,diameter:.1,tessellation:8},scene);post.position.set(p.x+dx,1.23,p.z+dz);post.material=metal;
