@@ -363,7 +363,7 @@
   if(!characterContainerPromise){
    // Resolve relative to the deployed page so GitHub Pages project paths and local previews both work.
    const assetDirectory=new URL("./assets/",document.baseURI).href;
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync(assetDirectory,"jog-maya-3d-person-animated.glb",scene).then(container=>{
+   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync(assetDirectory,"locomotion-collection-maya-3d-person-animated.glb",scene).then(container=>{
     if(!container||!container.rootNodes||!container.rootNodes.length)throw new Error("The character GLB loaded but contained no root nodes.");
     if(!container.skeletons||!container.skeletons.length)throw new Error("The character GLB contains no rig/skeleton; animated residents cannot be created.");
     return container;
@@ -610,7 +610,7 @@
   let container;
   residentRigLoadedCount=0;residentRigFailures=[];
   try{container=await getCharacterContainer();}
-  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail+"\\nAsset URL: "+new URL("./assets/jog-maya-3d-person-animated.glb",document.baseURI).href);showToast("Resident model failed to load. See the character diagnostics panel.",9000);throw error;}
+  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail+"\\nAsset URL: "+new URL("./assets/locomotion-collection-maya-3d-person-animated.glb",document.baseURI).href);showToast("Resident model failed to load. See the character diagnostics panel.",9000);throw error;}
   for(const npc of residents){
    if(npc.rigged){residentRigLoadedCount++;continue;}
    let instance=null,rigRoot=null;
