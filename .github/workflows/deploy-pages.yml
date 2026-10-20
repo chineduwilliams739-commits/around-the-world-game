@@ -27,9 +27,9 @@ jobs:
         run: |
           mkdir -p assets
           curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
-            "https://www.innerscene.com/api/library/jog-maya-3d-person-animated-0e72686c/download" \
-            --output assets/jog-maya-3d-person-animated.glb
-          test "$(wc -c < assets/jog-maya-3d-person-animated.glb)" -gt 1000000
+            "https://www.innerscene.com/api/library/locomotion-collection-maya-3d-person-animated-1499b2fd/download" \
+            --output assets/locomotion-collection-maya-3d-person-animated.glb
+          test "$(wc -c < assets/locomotion-collection-maya-3d-person-animated.glb)" -gt 1000000
       - name: Configure and enable Pages
         uses: actions/configure-pages@v5
         with:
