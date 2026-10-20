@@ -269,6 +269,63 @@
    box('streetlight arm',x+(x<0?.45:-.45),4.1,z,.9,.12,.12,roof,false);
    const bulb=B.MeshBuilder.CreateSphere('streetlight bulb',{diameter:.32},scene);bulb.position.set(x+(x<0?.85:-.85),4.05,z);bulb.material=gold;
  }
+ // City detail pass: pedestrian crossings, traffic signals, bus shelters, seating and streetscape planting.
+ // All new props are lightweight procedural meshes and do not depend on external assets.
+ const crossingWhite=mat('zebra crossing paint','#f2f1e9',.72);
+ const signalRed=mat('signal red','#df5147',.38), signalAmber=mat('signal amber','#e6b84c',.38), signalGreen=mat('signal green','#62c98c',.38);
+ const metal=mat('street furniture metal','#48565e',.62), planterMat=mat('stone planter','#9da9a5',.86), flowerMat=mat('planter flowers','#d8b56a',.8);
+ // Zebra crossings on all four approaches to the main intersection.
+ for(const z of [-5.1,5.1]) for(let x=-7.1;x<=7.1;x+=1.55) box('zebra crossing stripe',x,.065,z, .82,.025,2.05,crossingWhite,false);
+ for(const x of [-7.1,7.1]) for(let z=-5.3;z<=5.3;z+=1.55) box('cross street crossing stripe',x,.068,z, 2.05,.025,.82,crossingWhite,false);
+ // Raised central avenue lane separators and turning guidance.
+ for(const z of [-2.2,2.2]) box('intersection lane guide',0,.055,z,.14,.018,4.2,crossingWhite,false);
+ // Four signal poles with signal heads at pedestrian corners.
+ for(const p of [{x:-10.2,z:-8.5},{x:10.2,z:-8.5},{x:-10.2,z:8.5},{x:10.2,z:8.5}]){
+   const pole=B.MeshBuilder.CreateCylinder('traffic signal pole',{height:5.1,diameter:.16,tessellation:8},scene);pole.position.set(p.x,2.55,p.z);pole.material=metal;
+   box('traffic signal arm',p.x+(p.x<0?-.52:.52),4.9,p.z,.95,.12,.12,metal,false);
+   box('traffic signal housing',p.x+(p.x<0?-.95:.95),4.48,p.z,.42,.95,.34,dark,false);
+   for(const [j,m] of [[0,signalRed],[1,signalAmber],[2,signalGreen]]){
+     const lamp=B.MeshBuilder.CreateSphere('traffic signal lamp',{diameter:.19,segments:8},scene);
+     lamp.position.set(p.x+(p.x<0?-.95:.95),4.78-j*.3,p.z+(p.z<0?-.19:.19));lamp.material=m;
+   }
+ }
+ // Bench-and-planter pockets along the park edge.
+ for(const p of [{x:-55,z:30},{x:-55,z:40},{x:-29,z:30},{x:-29,z:40}]){
+   box('park bench seat',p.x,.62,p.z,2.2,.16,.62,roof,false);
+   box('park bench back',p.x,.98,p.z-.24,2.2,.56,.12,metal,false);
+   for(const dx of [-.78,.78]) box('park bench leg',p.x+dx,.32,p.z,.12,.58,.14,metal,false);
+ }
+ for(const p of [{x:-57,z:24},{x:-57,z:46},{x:-27,z:24},{x:-27,z:46}]){
+   box('street planter',p.x,.34,p.z,1.5,.58,1.5,planterMat,false);
+   const shrub=B.MeshBuilder.CreateSphere('planter shrub',{diameter:1.1,segments:8},scene);shrub.position.set(p.x,.92,p.z);shrub.scaling.y=.75;shrub.material=green;
+   const bloom=B.MeshBuilder.CreateSphere('planter flower accent',{diameter:.28,segments:7},scene);bloom.position.set(p.x+.2,1.24,p.z-.2);bloom.material=flowerMat;
+ }
+ // Bus stops on the two long sides of Central Avenue.
+ for(const p of [{x:-13.3,z:-31},{x:13.3,z:31}]){
+   box('bus shelter platform',p.x,.12,p.z,4.6,.2,2.1,sidewalk,false);
+   for(const dx of [-1.9,1.9]) for(const dz of [-.75,.75]){
+     const post=B.MeshBuilder.CreateCylinder('bus shelter post',{height:2.25,diameter:.1,tessellation:8},scene);post.position.set(p.x+dx,1.23,p.z+dz);post.material=metal;
+   }
+   box('bus shelter roof',p.x,2.42,p.z,4.5,.18,2.05,roof,false);
+   box('bus shelter back glass',p.x,1.25,p.z-.75,4.2,1.7,.06,glass,false);
+   box('bus stop sign',p.x-2.55,1.9,p.z,.12,2.7,.12,metal,false);
+   box('bus stop sign plate',p.x-2.55,3.1,p.z,.68,.48,.12,gold,false);
+   box('bus shelter bench',p.x,.67,p.z+.35,2.6,.16,.48,metal,false);
+ }
+ // Additional low-rise residential and commercial blocks give the city a fuller skyline.
+ // Keep a clear buffer around the existing park, playable roads and the landmark entrances.
+ const outerLots=[
+   {x:-65,z:-66,w:11,d:12,h:9},{x:-65,z:-35,w:12,d:13,h:12},{x:-65,z:5,w:11,d:13,h:10},{x:-65,z:66,w:12,d:12,h:14},
+   {x:65,z:-66,w:12,d:12,h:15},{x:65,z:-35,w:11,d:13,h:9},{x:65,z:15,w:12,d:13,h:13},{x:65,z:66,w:11,d:12,h:10},
+   {x:-39,z:-67,w:12,d:11,h:11},{x:-20,z:-67,w:10,d:11,h:8},{x:39,z:67,w:12,d:11,h:12},{x:20,z:67,w:10,d:11,h:9}
+ ];
+ outerLots.forEach((b,i)=>building(b.x,b.z,b.w,b.d,b.h,facadeMats[(i+1)%facadeMats.length],i+20));
+ // Roof equipment and facade accent bands on the new skyline blocks.
+ outerLots.forEach((b,i)=>{
+   box('rooftop utility unit',b.x+(i%2?2:-2),b.h+.52,b.z,1.25,.7,1.1,metal,false);
+   box('facade accent band',b.x,b.h*.58,b.z-b.d/2-.045,b.w*.84,.12,.08,gold,false);
+ });
+
  // Player avatar: detailed procedural human, available immediately with no external model dependency.
  const player=new B.TransformNode('playerRoot',scene);player.position.set(0,0,12);
  const playerLegs=[],playerArms=[],playerFeet=[],playerHands=[];
