@@ -84,10 +84,15 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
     else if(/head|neck/.test(n))kind='head';
     else if(/spine|chest|hips|pelvis/.test(n))kind='torso';
     if(!kind)return null;
-    let baseEuler=null;
+    // Imported GLB rigs commonly store their bind pose as quaternions.
+    // Preserve that representation so the test actually changes the rendered pose.
+    let baseQuaternion=null, baseEuler=null;
+    try{baseQuaternion=entry.bone.getRotationQuaternion(BABYLON.Space.LOCAL);}catch(_){}
     try{baseEuler=entry.bone.getRotation(BABYLON.Space.LOCAL);}catch(_){}
-    if(!baseEuler)baseEuler=new BABYLON.Vector3(0,0,0);
-    return {bone:entry.bone,baseEuler:baseEuler.clone(),kind};
+    if(!baseQuaternion && baseEuler) baseQuaternion=BABYLON.Quaternion.FromEulerVector(baseEuler);
+    if(!baseQuaternion) baseQuaternion=BABYLON.Quaternion.Identity();
+    if(!baseEuler) baseEuler=baseQuaternion.toEulerAngles();
+    return {bone:entry.bone,baseQuaternion:baseQuaternion.clone(),baseEuler:baseEuler.clone(),kind};
   }).filter(Boolean);
   if(imported.skeletons.length&&bones.length){
     rigTest={entries:motionEntries,bones,startedAt:0};
@@ -95,8 +100,8 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
     testMotion.textContent=motionEntries.length?'Start basic rig-motion test':'Rig found; no recognizable limb bones';
     testMotion.onclick=()=>{
       rigTestActive=!rigTestActive;
-      if(rigTestActive){rigTest.startedAt=performance.now();testMotion.textContent='Stop test motion';}
-      else{rigTest.entries.forEach(e=>{try{e.bone.setRotation(e.baseEuler,BABYLON.Space.LOCAL);}catch(_){}});testMotion.textContent='Start basic rig-motion test';}
+      if(rigTestActive){rigTest.startedAt=performance.now();testMotion.textContent='Stop test motion';status.textContent='Applying skeleton motion…';}
+      else{rigTest.entries.forEach(e=>{try{e.bone.setRotationQuaternion(e.baseQuaternion,BABYLON.Space.LOCAL);}catch(_){}});testMotion.textContent='Start basic rig-motion test';status.textContent='Model loaded — motion test stopped';}
     };
   }else{
     testMotion.textContent='No usable skeleton found';
@@ -121,9 +126,11 @@ h1{font-size:15px;letter-spacing:.07em;margin:0 0 8px}#status{font-weight:650;co
       else if(e.kind==='head')yaw=Math.sin(t*1.1)*.035;
       else if(e.kind==='torso')yaw=Math.sin(phase)*.025;
       try{
-        // Apply a small additive Euler rotation to the bone's local bind rotation.
-        // This deliberately tests the rig without relying on nonexistent animation clips.
-        e.bone.setRotation(new BABYLON.Vector3(e.baseEuler.x+pitch,e.baseEuler.y+yaw,e.baseEuler.z+roll),BABYLON.Space.LOCAL);
+        // Compose a small motion delta with the imported bind-pose quaternion.
+        // This works with GLB rigs whose bones are quaternion-driven.
+        const delta=BABYLON.Quaternion.FromEulerAngles(pitch,yaw,roll);
+        const animated=e.baseQuaternion.multiply(delta);
+        e.bone.setRotationQuaternion(animated,BABYLON.Space.LOCAL);
       }catch(err){console.warn('Could not apply test motion to bone '+e.bone.name,err);}
     });
   }
