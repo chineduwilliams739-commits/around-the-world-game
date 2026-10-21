@@ -722,11 +722,12 @@
     if(!Number.isFinite(height)||height<.5)throw new Error("Driver character bounds are invalid (height "+height+").");
     const driverScale=1.15/height;
     modelRoot.scaling.setAll(driverScale);
-    modelRoot.position.y=-bounds.min.y*driverScale;
+    const driverFloorOffset=-bounds.min.y*driverScale;
+    modelRoot.position.y=driverFloorOffset;
     modelRoot.computeWorldMatrix(true);
     meshes.forEach(mesh=>{mesh.computeWorldMatrix(true);mesh.refreshBoundingInfo(true);});
     modelRoot.parent=car.driverRoot;
-    modelRoot.position.y=0;
+    modelRoot.position.y=driverFloorOffset;
     modelRoot.position.x=0;
     modelRoot.position.z=0;
     styleRigMaterials(meshes,index+2);
