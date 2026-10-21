@@ -1005,7 +1005,7 @@
   button.textContent="Retrying…";
   setModelDiagnostics("Retrying character models","Trying to download and load the clothed character model again…");
   Object.keys(characterContainerPromises).forEach(key=>delete characterContainerPromises[key]);
-  Promise.allSettled([upgradePlayerModel(),upgradeResidentModels()]).then(results=>{
+  Promise.allSettled([upgradePlayerModel(),upgradeResidentModels(),upgradeTrafficDriverModels()]).then(results=>{
    button.disabled=false;
    button.textContent="Retry character models";
    const failed=results.some(result=>result.status==="rejected");
