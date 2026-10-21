@@ -194,20 +194,28 @@
     if(car.driverModelLoaded&&car.driverAnimations)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"idle",car.driverCurrentAnimation);
     continue;
    }
-   // Once the player takes a car, the former driver must visibly leave on foot.
-   d.setEnabled(!!car.driverModelLoaded);
+   // If the player enters before this car's clothed GLB has finished loading,
+   // keep the escape pending. Never consume the escape timer while the driver is invisible.
+   if(!car.driverModelLoaded){
+    d.setEnabled(false);
+    continue;
+   }
+   // Once the rig is ready, show it outside the vehicle and run away on foot.
+   d.setEnabled(true);
    car.fleeTime+=dt;
    const runSpeed=car.fleeTime<.35?1.6:4.4;
-   const awayX=car.driverSide;
-   const moveX=awayX*runSpeed*dt;
+   const moveX=car.driverSide*runSpeed*dt;
    const moveZ=(-Math.cos(car.root.rotation.y)*.25)*dt;
    d.position.x+=moveX;
    d.position.z+=moveZ;
    d.rotation.y=Math.atan2(moveX,moveZ);
-   if(car.driverModelLoaded&&car.driverAnimations){
-    const runGroup=car.driverAnimations.find(g=>/run|jog|sprint/i.test(g.name||""));
-    if(runGroup)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
-    else car.driverAnimations.forEach(g=>{if(!g.isPlaying)g.start(true);});
+   if(car.driverAnimations&&car.driverAnimations.length){
+    car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
+   }else{
+    // The clothed rig remains visible even if this GLB has no animation clips.
+    // Add a small visible running bounce until proper run clips are available.
+    d.position.y=.04+Math.abs(Math.sin(car.fleeTime*12))*.07;
+    d.rotation.z=Math.sin(car.fleeTime*12)*.035;
    }
    if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;car.driverGone=true;}
   }
