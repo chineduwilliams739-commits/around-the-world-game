@@ -358,19 +358,20 @@
 
  // Keep the clothed, articulated in-game avatar active. The bundled base GLB is not a complete dressed/animated character, so replacing this avatar with it caused the undressed, stiff look reported by the player.
  /* Load a CC0, clothed, rigged human with a looping animation from the Innerscene GLB library. */
- let characterContainerPromise=null;
- function getCharacterContainer(){
-  if(!characterContainerPromise){
-   // Resolve relative to the deployed page so GitHub Pages project paths and local previews both work.
-   const assetDirectory=new URL("./assets/",document.baseURI).href;
-   characterContainerPromise=B.SceneLoader.LoadAssetContainerAsync(assetDirectory,"locomotion-collection-maya-3d-person-animated.glb",scene).then(container=>{
-    if(!container||!container.rootNodes||!container.rootNodes.length)throw new Error("The character GLB loaded but contained no root nodes.");
-    if(!container.skeletons||!container.skeletons.length)throw new Error("The character GLB contains no rig/skeleton; animated residents cannot be created.");
-    return container;
-   }).catch(error=>{characterContainerPromise=null;throw error;});
+  const characterContainerPromises={};
+  function getCharacterContainer(variant="maya"){
+   const safeVariant=variant==="sam"?"sam":"maya";
+   if(!characterContainerPromises[safeVariant]){
+    const assetDirectory=new URL("./assets/",document.baseURI).href;
+    const filename=safeVariant==="sam"?"locomotion-collection-sam-3d-person-animated.glb":"locomotion-collection-maya-3d-person-animated.glb";
+    characterContainerPromises[safeVariant]=B.SceneLoader.LoadAssetContainerAsync(assetDirectory,filename,scene).then(container=>{
+     if(!container||!container.rootNodes||!container.rootNodes.length)throw new Error("The "+safeVariant+" character GLB loaded but contained no root nodes.");
+     if(!container.skeletons||!container.skeletons.length)throw new Error("The "+safeVariant+" character GLB contains no rig/skeleton; animated residents cannot be created.");
+     return container;
+    }).catch(error=>{delete characterContainerPromises[safeVariant];throw error;});
+   }
+   return characterContainerPromises[safeVariant];
   }
-  return characterContainerPromise;
- }
  function characterMeshes(instance){
   const found=[],seen=new Set();
   const add=mesh=>{if(mesh&&typeof mesh.getTotalVertices==="function"&&mesh.getTotalVertices()>0&&!seen.has(mesh)){seen.add(mesh);found.push(mesh);}};
@@ -470,7 +471,7 @@
   const proceduralMeshes=player.getChildMeshes(false);
   let instance=null,rigRoot=null;
   try{
-   const container=await getCharacterContainer();
+   const container=await getCharacterContainer("maya");
    instance=container.instantiateModelsToScene(name=>name+"_player",true);
    const roots=[...(instance.rootNodes||[])];
    const visibleRigMeshes=characterMeshes(instance);
@@ -580,7 +581,7 @@
  async function upgradeResidentModels(){
   let container;
   residentRigLoadedCount=0;residentRigFailures=[];
-  try{container=await getCharacterContainer();}
+  try{container=await getCharacterContainer("maya");}
   catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail+"\\nAsset URL: "+new URL("./assets/locomotion-collection-maya-3d-person-animated.glb",document.baseURI).href);showToast("Resident model failed to load. See the character diagnostics panel.",9000);throw error;}
   for(const npc of residents){
    if(npc.rigged){residentRigLoadedCount++;continue;}
@@ -909,7 +910,7 @@
   button.disabled=true;
   button.textContent="Retrying…";
   setModelDiagnostics("Retrying character models","Trying to download and load the clothed character model again…");
-  characterContainerPromise=null;
+  Object.keys(characterContainerPromises).forEach(key=>delete characterContainerPromises[key]);
   Promise.allSettled([upgradePlayerModel(),upgradeResidentModels()]).then(results=>{
    button.disabled=false;
    button.textContent="Retry character models";
