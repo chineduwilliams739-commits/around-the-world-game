@@ -624,7 +624,12 @@
  // Upgrade all residents using instances of the same local GLB; the asset is fetched only once.
  async function upgradeResidentModels(){
   residentRigLoadedCount=0;residentRigFailures=[];
-  for(const npc of residents){
+  // Prioritize residents nearest the starting player so the opening screen clears sooner.
+  const residentLoadOrder=[...residents].sort((a,b)=>
+   Math.hypot(a.root.position.x-player.position.x,a.root.position.z-player.position.z)-
+   Math.hypot(b.root.position.x-player.position.x,b.root.position.z-player.position.z)
+  );
+  for(const npc of residentLoadOrder){
    if(npc.rigged){residentRigLoadedCount++;continue;}
    let instance=null,rigRoot=null;
    const proceduralRoot=npc.root;
