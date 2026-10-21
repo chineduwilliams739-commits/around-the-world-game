@@ -378,6 +378,21 @@
   for(const root of instance.rootNodes||[]){add(root);if(root.getChildMeshes)root.getChildMeshes(false).forEach(add);}
   return found;
  }
+ // Some source characters include separate glasses or backpacks. Hide only separately
+ // named accessory meshes; never hide the face, hair, body, or clothing to guess at a fix.
+ function removeUnwantedAccessories(meshes){
+  const accessoryPattern=/\b(glasses|eyeglasses|sunglasses|eyewear|spectacles|backpack|rucksack|back pack)\b/i;
+  let removed=0;
+  for(const mesh of meshes){
+   let node=mesh,labels=[];
+   while(node){labels.push(node.name||"");node=node.parent;}
+   const label=labels.join(" ");
+   if(accessoryPattern.test(label)){
+    mesh.setEnabled(false);mesh.isVisible=false;removed++;
+   }
+  }
+  return removed;
+ }
  // Measure actual renderable meshes rather than assuming the first GLB root is a mesh.
  // Many GLB files use a TransformNode as their root; that node has no reliable mesh bounds.
  function getCharacterBounds(meshes){
@@ -479,10 +494,11 @@
    rigRoot=new B.TransformNode("playerRigRoot",scene);
    rigRoot.parent=player;
    rigRoot.position.set(0,0,0);
-   rigRoot.rotation.y=Math.PI;
+   rigRoot.rotation.y=0; // Keep the model facing the same +Z direction as the movement controller.
    rigRoot.scaling.setAll(1);
    roots.forEach(root=>{root.parent=rigRoot;root.setEnabled(true);});
    visibleRigMeshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;mesh.computeWorldMatrix(true);});
+   removeUnwantedAccessories(visibleRigMeshes);
    const bounds=getCharacterBounds(visibleRigMeshes);
    const height=bounds.max.y-bounds.min.y;
    if(!Number.isFinite(height)||height<0.5)throw new Error("The bundled character bounds are invalid (height "+height+").");
@@ -501,7 +517,7 @@
    // Do not keep a mannequin placeholder just because this browser has a saved profile.
    proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=true;
-   console.info("Loaded clothed CC0 player model",{meshCount:visibleRigMeshes.length,height,animationGroups:animationGroups.length});
+   console.info("Loaded clothed CC0 player model",{meshCount:visibleRigMeshes.length,height,animationGroups:animationGroups.length,accessoriesRemoved:removeUnwantedAccessories(visibleRigMeshes)});
    showToast("3D character model loaded",2200);
   }catch(error){
    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
@@ -579,16 +595,16 @@
  residentRoutes.forEach((route,i)=>createResident(i,route));
  // Upgrade all residents using instances of the same local GLB; the asset is fetched only once.
  async function upgradeResidentModels(){
-  let container;
   residentRigLoadedCount=0;residentRigFailures=[];
-  try{container=await getCharacterContainer("maya");}
-  catch(error){const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";console.error("3D RESIDENT MODEL LOAD FAILED:",error);setModelDiagnostics("Resident character models failed",detail+"\\nAsset URL: "+new URL("./assets/locomotion-collection-maya-3d-person-animated.glb",document.baseURI).href);showToast("Resident model failed to load. See the character diagnostics panel.",9000);throw error;}
   for(const npc of residents){
    if(npc.rigged){residentRigLoadedCount++;continue;}
    let instance=null,rigRoot=null;
    const proceduralRoot=npc.root;
    const spawn=proceduralRoot.position.clone();
+   // Alternate feminine and masculine clothed rigs so the city does not clone one look.
+   const modelVariant=npc.index%2===0?"maya":"sam";
    try{
+    const container=await getCharacterContainer(modelVariant);
     instance=container.instantiateModelsToScene(name=>name+"_resident"+npc.index,true);
     const roots=[...(instance.rootNodes||[])];
     const visibleMeshes=characterMeshes(instance);
@@ -598,6 +614,7 @@
     rigRoot.rotation.y=proceduralRoot.rotation.y;
     roots.forEach(root=>{root.parent=rigRoot;root.setEnabled(true);});
     visibleMeshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;mesh.computeWorldMatrix(true);});
+    removeUnwantedAccessories(visibleMeshes);
     const bounds=getCharacterBounds(visibleMeshes);
     const height=bounds.max.y-bounds.min.y;
     const targetHeight=1.82+((npc.index%3)-1)*.035;
