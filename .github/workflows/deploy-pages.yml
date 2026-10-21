@@ -23,13 +23,19 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      - name: Download and bundle the CC0 animated human model
+      - name: Download and bundle the animated character and Babylon.js locally
         run: |
           mkdir -p assets
           curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
             "https://www.innerscene.com/api/library/locomotion-collection-maya-3d-person-animated-1499b2fd/download" \
             --output assets/locomotion-collection-maya-3d-person-animated.glb
           test "$(wc -c < assets/locomotion-collection-maya-3d-person-animated.glb)" -gt 1000000
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
+            "https://cdn.babylonjs.com/babylon.js" --output assets/babylon.js
+          test "$(wc -c < assets/babylon.js)" -gt 100000
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
+            "https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js" --output assets/babylonjs.loaders.min.js
+          test "$(wc -c < assets/babylonjs.loaders.min.js)" -gt 10000
       - name: Configure and enable Pages
         uses: actions/configure-pages@v5
         with:
