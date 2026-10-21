@@ -692,8 +692,6 @@
   if(residentRigFailures.length){
    setModelDiagnostics("Realistic residents loaded: "+residentRigLoadedCount+"/"+residents.length,"Some residents are still using fallback models.\\n"+residentRigFailures.join("\\n"));
    showToast("Only "+residentRigLoadedCount+" of "+residents.length+" realistic resident models loaded.",9000);
-  }else if(playerRigLoaded){
-   const panel=document.getElementById("modelDiagnostics");if(panel)panel.style.display="none";
   }
  }
  // Traffic occupants use the same clothed, rigged assets as residents; primitive driver meshes stay hidden.
@@ -710,22 +708,34 @@
     instance=container.instantiateModelsToScene(name=>name+"_driver"+index,true);
     const roots=[...(instance.rootNodes||[])],meshes=characterMeshes(instance);
     if(!roots.length||!meshes.length||!instance.skeletons.length)throw new Error("Driver GLB has no visible skinned character.");
+    // Normalize the GLB at the origin first, then attach it to the independently moving driver.
+    // Measuring after parenting to a moving car can bake the car's world position into the floor offset.
     modelRoot=new B.TransformNode("trafficDriverRig"+index,scene);
-    modelRoot.parent=car.driverRoot;
+    modelRoot.position.set(0,0,0);
+    modelRoot.scaling.setAll(1);
     roots.forEach(root=>{root.parent=modelRoot;root.setEnabled(true);});
     meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;});
     removeUnwantedAccessories(meshes);
-    const groups=instance.animationGroups||[];
+    modelRoot.computeWorldMatrix(true);
+    meshes.forEach(mesh=>mesh.computeWorldMatrix(true));
     const bounds=getCharacterBounds(meshes),height=bounds.max.y-bounds.min.y;
-    if(!Number.isFinite(height)||height<.5)throw new Error("Driver character bounds are invalid.");
-    modelRoot.scaling.setAll(1.15/height);
-    modelRoot.position.set(0,-.2,0);
+    if(!Number.isFinite(height)||height<.5)throw new Error("Driver character bounds are invalid (height "+height+").");
+    const driverScale=1.15/height;
+    modelRoot.scaling.setAll(driverScale);
+    modelRoot.position.y=-bounds.min.y*driverScale;
+    modelRoot.computeWorldMatrix(true);
+    meshes.forEach(mesh=>{mesh.computeWorldMatrix(true);mesh.refreshBoundingInfo(true);});
+    modelRoot.parent=car.driverRoot;
+    modelRoot.position.y=0;
+    modelRoot.position.x=0;
+    modelRoot.position.z=0;
     styleRigMaterials(meshes,index+2);
-    car.driverAnimations=groups;
+    car.driverAnimations=instance.animationGroups||[];
     car.driverModelLoaded=true;
     car.driverRoot.getChildMeshes(false).forEach(mesh=>{if(!meshes.includes(mesh))mesh.setEnabled(false);});
-    setCharacterAnimation(groups,"idle",null);
-    console.info("Loaded clothed traffic driver",{index,meshes:meshes.length,animationGroups:groups.length});
+    setCharacterAnimation(car.driverAnimations,"idle",null);
+    car.driverRoot.setEnabled(true);
+    console.info("Loaded clothed traffic driver",{index,meshes:meshes.length,animationGroups:car.driverAnimations.length,scale:driverScale,floorOffset:modelRoot.position.y});
    }catch(error){
     if(modelRoot&&!modelRoot.isDisposed())modelRoot.dispose(false,true);
     else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
