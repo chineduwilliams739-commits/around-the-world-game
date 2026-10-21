@@ -173,7 +173,9 @@
    const arm=B.MeshBuilder.CreateCapsule('traffic driver arm '+index+' '+side,{height:.65,radius:.105,tessellation:7},scene);arm.parent=driverRoot;arm.position.set(side*.27,1.05,.12);arm.rotation.z=side*.42;arm.material=driverClothes;driverArms.push(arm);
    const leg=B.MeshBuilder.CreateCapsule('traffic driver leg '+index+' '+side,{height:.65,radius:.12,tessellation:7},scene);leg.parent=driverRoot;leg.position.set(side*.14,.48,-.08);leg.material=driverClothes;driverLegs.push(leg);
   }
-  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0,driverGone:false};
+  // No primitive driver placeholder is ever shown, including while GLBs download or fail.
+  driverRoot.getChildMeshes(false).forEach(mesh=>mesh.setEnabled(false));
+  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,driverAnimations:[],driverModelLoaded:false,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0,driverGone:false};
  }
  const traffic=[
   createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:9.2}),
@@ -643,6 +645,8 @@
     npc.proceduralRoot=proceduralRoot;
     npc.root=rigRoot;
     npc.rigged=true;
+    npc.rigGroundY=rigRoot.position.y;
+    npc.rigFacingOffset=Math.PI;
     npc.rigAnimations=animationGroups;
     if(npc.phone)npc.phone.setEnabled(false);
     if(npc.bag)npc.bag.setEnabled(false);
@@ -722,7 +726,7 @@
    animateRigMotion(npc.rigMotion,now,npc.wait<=0,npc.action,dt);
    if(npc.rigged&&npc.rigAnimations)npc.rigCurrentAnimation=setCharacterAnimation(npc.rigAnimations,npc.wait>0?"idle":"walk",npc.rigCurrentAnimation);
    if(npc.wait>0){
-    npc.wait-=dt;if(!npc.rigged)npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;else npc.root.position.y=0;
+    npc.wait-=dt;if(!npc.rigged)npc.root.position.y=Math.sin(npc.lookPhase*2+npc.phase)*.012;else npc.root.position.y=npc.rigGroundY||0;
     npc.legs.forEach(leg=>leg.rotation.x*=.82);
     npc.arms.forEach((arm,i)=>{arm.rotation.x+=(0-arm.rotation.x)*Math.min(1,dt*4);arm.rotation.z+=((i===0?-.12:.12)-arm.rotation.z)*Math.min(1,dt*3);});
     if(npc.phone)npc.phone.isVisible=npc.action==='phone';
@@ -754,14 +758,14 @@
    }
    const routinePace=npc.routine==='commuter'&&rushHour?1.22:(npc.routine==='park'&&daytime?.78:(npc.routine==='social'&&evening?.88:1));
    const speed=(npc.index%3===0?1.05:.78)*(night?.62:1)*routinePace*(npc.routine==='park'?.72:1),step=Math.min(dist,speed*dt);
-   npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;npc.root.rotation.y=Math.atan2(dx,dz);
+   npc.root.position.x+=dx/dist*step;npc.root.position.z+=dz/dist*step;npc.root.rotation.y=Math.atan2(dx,dz)+(npc.rigFacingOffset||0);
    const gaitRate=(npc.routine==='commuter'&&rushHour?1.22:(npc.routine==='park'&&daytime?.82:1));
    const swing=Math.sin(now/(145/gaitRate)+npc.phase)*(.24+(npc.index%3)*.035);
    npc.legs[0].rotation.x=swing;npc.legs[1].rotation.x=-swing;npc.arms[0].rotation.x=-swing*.72;npc.arms[1].rotation.x=swing*.72;
    npc.arms[0].rotation.z=-.12+Math.sin(now/210+npc.phase)*.025;npc.arms[1].rotation.z=.12-Math.sin(now/210+npc.phase)*.025;
    npc.hands[0].position.y=-.72+Math.sin(now/145+npc.phase)*.035;npc.hands[1].position.y=-.72-Math.sin(now/145+npc.phase)*.035;
    npc.feet[0].rotation.x=npc.legs[0].rotation.x*.35;npc.feet[1].rotation.x=npc.legs[1].rotation.x*.35;
-   if(!npc.rigged)npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;else npc.root.position.y=0;
+   if(!npc.rigged)npc.root.position.y=Math.abs(Math.sin(now/150+npc.phase))*.035;else npc.root.position.y=npc.rigGroundY||0;
   }
   // Residents who meet on the same street can stop for a brief, recurring conversation.
   // Friendship familiarity grows with repeat meetings and slightly lengthens later chats.
