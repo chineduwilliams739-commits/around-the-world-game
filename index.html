@@ -194,14 +194,21 @@
     if(car.driverModelLoaded&&car.driverAnimations)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"idle",car.driverCurrentAnimation);
     continue;
    }
+   // Once the player takes a car, the former driver must visibly leave on foot.
+   d.setEnabled(!!car.driverModelLoaded);
    car.fleeTime+=dt;
    const runSpeed=car.fleeTime<.35?1.6:4.4;
    const awayX=car.driverSide;
-   d.position.x+=awayX*runSpeed*dt;
-   d.position.z+=(-Math.cos(car.root.rotation.y)*.25)*dt;
-   d.rotation.y=Math.atan2(awayX,-Math.cos(car.root.rotation.y)*.25);
-   if(car.driverModelLoaded&&car.driverAnimations)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
-   d.position.y=car.root.position.y;
+   const moveX=awayX*runSpeed*dt;
+   const moveZ=(-Math.cos(car.root.rotation.y)*.25)*dt;
+   d.position.x+=moveX;
+   d.position.z+=moveZ;
+   d.rotation.y=Math.atan2(moveX,moveZ);
+   if(car.driverModelLoaded&&car.driverAnimations){
+    const runGroup=car.driverAnimations.find(g=>/run|jog|sprint/i.test(g.name||""));
+    if(runGroup)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
+    else car.driverAnimations.forEach(g=>{if(!g.isPlaying)g.start(true);});
+   }
    if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;car.driverGone=true;}
   }
  }
@@ -646,7 +653,7 @@
     npc.root=rigRoot;
     npc.rigged=true;
     npc.rigGroundY=rigRoot.position.y;
-    npc.rigFacingOffset=Math.PI;
+    npc.rigFacingOffset=0; // GLB forward axis matches the route direction; do not rotate residents backwards.
     npc.rigAnimations=animationGroups;
     if(npc.phone)npc.phone.setEnabled(false);
     if(npc.bag)npc.bag.setEnabled(false);
@@ -987,6 +994,13 @@
   });
  });
  let last=performance.now(),walk=0,firstFrameRendered=false;
+ // Keep the opening screen up until the player rig and at least two nearby resident rigs are ready.
+ // This prevents an empty city from being shown while the first characters download.
+ function hasOpeningCharactersReady(){
+  if(!playerRigLoaded)return false;
+  const px=player.position.x,pz=player.position.z;
+  return residents.filter(npc=>npc.rigged&&Math.hypot(npc.root.position.x-px,npc.root.position.z-pz)<38).length>=2;
+ }
  // Never make the first playable frame depend on every external asset finishing.
  // Load the clothed CC0 rig asynchronously; the city remains playable during download.
  upgradePlayerModel();
@@ -1057,13 +1071,14 @@
    const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
-   if(!firstFrameRendered){firstFrameRendered=true;loading.style.display='none';}
+   if(!firstFrameRendered&&hasOpeningCharactersReady()){firstFrameRendered=true;loading.style.display='none';}
  });
  window.addEventListener('pagehide',()=>{if(profileData)saveLocalProfile();});
  window.addEventListener('resize',()=>engine.resize());
  // Safety net for slow mobile devices or a stalled first frame.
  setTimeout(()=>{if(loading.style.display!=='none'){
-   loading.innerHTML='<div><b>New Horizon City is taking longer than expected</b><span>The game may still be loading. Check your connection, then refresh this page.</span></div>';
+   const ready=playerRigLoaded?residents.filter(npc=>npc.rigged&&Math.hypot(npc.root.position.x-player.position.x,npc.root.position.z-player.position.z)<38).length:0;
+   loading.innerHTML='<div><b>Preparing New Horizon City</b><span>Loading your character and nearby residents ('+(playerRigLoaded?'player ready':'player loading')+' · '+ready+' nearby residents ready). The city will open when the characters are ready.</span></div>';
  }},12000);
 })();
 </script>
