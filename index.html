@@ -188,7 +188,8 @@
    if(!car.fleeing){
     d.position.set(car.root.position.x,car.root.position.y,car.root.position.z);
     d.rotation.y=car.root.rotation.y;
-    d.setEnabled(true);
+    d.setEnabled(!!car.driverModelLoaded);
+    if(car.driverModelLoaded&&car.driverAnimations)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"idle",car.driverCurrentAnimation);
     continue;
    }
    car.fleeTime+=dt;
@@ -197,10 +198,8 @@
    d.position.x+=awayX*runSpeed*dt;
    d.position.z+=(-Math.cos(car.root.rotation.y)*.25)*dt;
    d.rotation.y=Math.atan2(awayX,-Math.cos(car.root.rotation.y)*.25);
-   const swing=Math.sin(car.fleeTime*12)*.65;
-   car.driverLegs[0].rotation.x=swing;car.driverLegs[1].rotation.x=-swing;
-   car.driverArms[0].rotation.x=-swing*.8;car.driverArms[1].rotation.x=swing*.8;
-   d.position.y=Math.abs(Math.sin(car.fleeTime*12))*.07;
+   if(car.driverModelLoaded&&car.driverAnimations)car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
+   d.position.y=car.root.position.y;
    if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;car.driverGone=true;}
   }
  }
@@ -484,6 +483,8 @@
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
+  // Never flash a procedural mannequin while the clothed rig downloads.
+  proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
   let instance=null,rigRoot=null;
   try{
    const container=await getCharacterContainer("maya");
@@ -522,7 +523,7 @@
   }catch(error){
    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
    else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
-   proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
+   proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
    playerRigLoaded=false;
    const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";
    console.error("3D PLAYER MODEL LOAD FAILED:",error);
@@ -590,6 +591,8 @@
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=arms[1];phone.position.set(.015,-.62,.13);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
   root.position.set(route[0][0],0,route[0][1]);
+  // Do not show low-detail fallback residents during loading or after a model error.
+  root.setEnabled(false);
   residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,name:residentNames[index],routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0,playerMeetings:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
@@ -661,8 +664,46 @@
    const panel=document.getElementById("modelDiagnostics");if(panel)panel.style.display="none";
   }
  }
- // Keep the complete procedural resident visible until each clothed rig validates successfully.
-
+ // Traffic occupants use the same clothed, rigged assets as residents; primitive driver meshes stay hidden.
+ async function upgradeTrafficDriverModels(){
+  const failures=[];
+  for(let index=0;index<traffic.length;index++){
+   const car=traffic[index];
+   let instance=null,modelRoot=null;
+   try{
+    const variant=index%2===0?"maya":"sam";
+    let container;
+    try{container=await getCharacterContainer(variant);}
+    catch(e){container=await getCharacterContainer(variant==="maya"?"sam":"maya");}
+    instance=container.instantiateModelsToScene(name=>name+"_driver"+index,true);
+    const roots=[...(instance.rootNodes||[])],meshes=characterMeshes(instance);
+    if(!roots.length||!meshes.length||!instance.skeletons.length)throw new Error("Driver GLB has no visible skinned character.");
+    modelRoot=new B.TransformNode("trafficDriverRig"+index,scene);
+    modelRoot.parent=car.driverRoot;
+    roots.forEach(root=>{root.parent=modelRoot;root.setEnabled(true);});
+    meshes.forEach(mesh=>{mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;});
+    removeUnwantedAccessories(meshes);
+    const groups=instance.animationGroups||[];
+    const bounds=getCharacterBounds(meshes),height=bounds.max.y-bounds.min.y;
+    if(!Number.isFinite(height)||height<.5)throw new Error("Driver character bounds are invalid.");
+    modelRoot.scaling.setAll(1.15/height);
+    modelRoot.position.set(0,-.2,0);
+    styleRigMaterials(meshes,index+2);
+    car.driverAnimations=groups;
+    car.driverModelLoaded=true;
+    car.driverRoot.getChildMeshes(false).forEach(mesh=>{if(!meshes.includes(mesh))mesh.setEnabled(false);});
+    setCharacterAnimation(groups,"idle",null);
+    console.info("Loaded clothed traffic driver",{index,meshes:meshes.length,animationGroups:groups.length});
+   }catch(error){
+    if(modelRoot&&!modelRoot.isDisposed())modelRoot.dispose(false,true);
+    else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
+    failures.push("Car "+index+": "+(error.message||String(error)));
+    console.error("TRAFFIC DRIVER MODEL FAILED",error);
+   }
+  }
+  if(failures.length)setModelDiagnostics("Some traffic drivers could not load","No mannequin drivers are shown.\n"+failures.join("\n"));
+ }
+ 
  function updateResidents(dt,now){
   const seconds=now/1000,dayPhase=(seconds%1440)/1440,hour=Math.floor(dayPhase*24),night=hour<6||hour>=20,rushHour=hour>=6&&hour<10,daytime=hour>=10&&hour<17,evening=hour>=17&&hour<21;
   for(const npc of residents){
@@ -946,7 +987,8 @@
  // Load the clothed CC0 rig asynchronously; the city remains playable during download.
  upgradePlayerModel();
  upgradeResidentModels();
- // The rigged resident model is optional; the procedural city can render immediately.
+ upgradeTrafficDriverModels();
+ // The city renders immediately, but no primitive human placeholders are ever displayed.
  engine.runRenderLoop(()=>{
    const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
    const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
