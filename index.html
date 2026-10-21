@@ -280,7 +280,7 @@
  // Civic plaza buildings and central landmark
  building(-28,-2,17,16,18,cream,4,true);box('Civic hall steps',-28,.18,-10,13,.36,4,concrete,false);
  box('Civic hall sign',-28,3,-10.2,8,.45,.15,gold,false);
- building(29,2,16,15,14,concrete,3);
+ building(29,2,16,15,14,concrete,3,true);
  // Park and waterfront promenade
  box('neighborhood park',-42,.04,35,24,.08,28,grass,false);
  for(let x=-51;x<=-33;x+=6)for(let z=26;z<=44;z+=6){
@@ -838,7 +838,7 @@
  const interactables=[
    {name:'Civic Hall entrance',x:-28,z:-12.3,radius:3.2,description:'Enter the Civic Hall public-service lobby.',action:'enter'},
    {name:'Green Park',x:-42,z:20,radius:5,description:'Green Park is a public place to relax and meet other residents. Social activities and NPC routines will be added in a later stage.',action:'info'},
-   {name:'Downtown Shop',x:29,z:-7.5,radius:4.5,description:'Apply for a paid Shop Assistant job and earn wages as you spend time in the city.',action:'shopJob'}
+   {name:'Downtown Shop entrance',x:29,z:-7.5,radius:4.5,description:'Enter Downtown Shop.',action:'enterShop'}
  ];
 
 
@@ -894,7 +894,7 @@
  [['mapPinCivic','civic'],['mapPinPark','park'],['mapPinShop','shop']].forEach(([id,key])=>{const el=document.getElementById(id);el.addEventListener('click',()=>setDestination(key));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setDestination(key);}})});
  function updateMap(){const mapActor=activeVehicle?activeVehicle.root:player;const x=mapActor.position.x,z=mapActor.position.z,heading=mapActor.rotation.y,cx=20+(x+90)/180*240,cy=20+(z+90)/180*240;mapPlayerMarker.setAttribute('transform','translate('+cx+' '+cy+') rotate('+(180-heading*180/Math.PI)+')');if(selectedDestination){const d=Math.hypot(x-selectedDestination.x,z-selectedDestination.z);mapGuidance.textContent='Destination: '+selectedDestination.name+' · '+Math.round(d)+' m away.'+(d<5?' You have arrived nearby!':' Keep moving toward the marked place.');}}
 
- let insideCivicHall=false, nearbyInteraction=null, activeVehicle=null, vehicleSpeed=0;
+ let insideCivicHall=false, insideShop=false, nearbyInteraction=null, activeVehicle=null, vehicleSpeed=0;
  function refreshInteraction(){
    if(activeVehicle){nearbyInteraction={name:'Exit vehicle',action:'vehicleExit'};interactionHint.style.display='block';interactionHint.textContent='E / INTERACT · Exit vehicle';return;}
    const p=player.position;
@@ -904,6 +904,11 @@
      const deskDist=Math.hypot(p.x+28,p.z-0.1);
      if(exitDist<4.2){nearbyInteraction={name:'Exit Civic Hall',action:'exit',description:'Return to Central Avenue.'};best=exitDist;}
      if(deskDist<3.2&&deskDist<best){nearbyInteraction={name:'Public Services Desk',action:'desk',description:'Apply for a paid Public Service Trainee job and earn wages as you spend time in the city.'};best=deskDist;}
+   }else if(insideShop){
+     const exitDist=Math.hypot(p.x-29,p.z+3.8);
+     const counterDist=Math.hypot(p.x-29,p.z-4.1);
+     if(exitDist<3.4){nearbyInteraction={name:'Exit Downtown Shop',action:'exitShop',description:'Return to Central Avenue.'};best=exitDist;}
+     if(counterDist<3.4&&counterDist<best){nearbyInteraction={name:'Shop Counter · Apply for work',action:'shopDesk',description:'Speak to the shop manager about a Shop Assistant position.'};best=counterDist;}
    }else{
      for(const item of interactables){const d=Math.hypot(p.x-item.x,p.z-item.z);if(d<item.radius&&d<best){nearbyInteraction=item;best=d;}}
    }
@@ -966,6 +971,16 @@
    }else if(nearbyInteraction.action==='exit'){
      insideCivicHall=false;player.position.set(-28,0,-14.2);
      showToast('You are back outside Civic Hall');
+   }else if(nearbyInteraction.action==='enterShop'){
+     insideShop=true;player.position.set(29,0,-3.6);player.rotation.y=0;
+     showToast('Entered Downtown Shop · Explore the shop floor and approach the counter');
+   }else if(nearbyInteraction.action==='exitShop'){
+     insideShop=false;player.position.set(29,0,-7.5);player.rotation.y=Math.PI;
+     showToast('You are back outside Downtown Shop');
+   }else if(nearbyInteraction.action==='shopDesk'){
+     if(!profileData){showToast('Create your resident profile first, then speak to the shop manager.');openProfile();return;}
+     if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
+     else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
    }else if(nearbyInteraction.action==='desk'){
      if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
      if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');}
@@ -1086,12 +1101,12 @@
      const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
      const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
      // Resolve each axis separately so collisions cannot freeze the player.
-     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,insideCivicHall?-35:-84,insideCivicHall?-21:84);
-     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,insideCivicHall?-9.6:-84,insideCivicHall?5:84);
+     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,insideCivicHall?-35:(insideShop?21.5:-84),insideCivicHall?-21:(insideShop?36.5:84));
+     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,insideCivicHall?-9.6:(insideShop?-4.7:-84),insideCivicHall?5:(insideShop?8.3:84));
      const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW&&Math.abs(z-o.z)<o.halfD);
      if(!blocked(nextX,player.position.z))player.position.x=nextX;
      if(!blocked(player.position.x,nextZ))player.position.z=nextZ;
-     if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}
+     if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}else if(insideShop){player.position.x=B.Scalar.Clamp(player.position.x,21.5,36.5);player.position.z=B.Scalar.Clamp(player.position.z,-4.7,8.3);}
      player.rotation.y=Math.atan2(dx,dz);
      const running=!!(keys.ShiftLeft||keys.ShiftRight);
      walk+=dt*(running?15:10);
