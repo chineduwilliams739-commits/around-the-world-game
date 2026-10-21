@@ -15,7 +15,7 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
 </head>
 <body>
 <canvas id="renderCanvas"></canvas>
-<section id="panel"><h1>AROUND THE WORLD · REAL ANIMATION TEST</h1><div id="status">Loading a clothed character with real animation clips…</div><div id="details">This is a separate test page. The live game is not being changed.</div><div class="controls"><button id="idle" disabled>Idle / Stand</button><button id="walk" disabled>Walk</button><button id="run" disabled>Run</button><button id="stop" disabled>Stop animation</button></div></section>
+<section id="panel"><h1>AROUND THE WORLD · REAL ANIMATION TEST</h1><div id="status">Loading the locally hosted animated character…</div><div id="details">This is a separate test page. The live game is not being changed.</div><div class="controls"><button id="idle" disabled>Idle / Stand</button><button id="walk" disabled>Walk</button><button id="run" disabled>Run</button><button id="stop" disabled>Stop animation</button></div></section>
 <div id="hint">Drag to orbit · Pinch to zoom · Test page only</div>
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
@@ -36,8 +36,8 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
  function playGroup(group){if(!group)return;groups.forEach(g=>{try{g.stop();}catch(e){}});try{group.start(true,1,group.from,group.to,false);status.textContent='Playing: '+group.name;status.style.color='#8de6b0';}catch(e){details.textContent+='\nAnimation start failed: '+group.name+' — '+e.message;}}
  function findGroup(regex){return groups.find(g=>regex.test(String(g.name||'')));}
  try{
-  status.textContent='Downloading the rigged Casual Woman model…';
-  const rootUrl='https://grab3d.com/dl/woman-rigged/',fileName='woman-rigged.glb';
+  status.textContent='Loading the locally hosted animated character…';
+  const rootUrl='assets/',fileName='locomotion-collection-maya-3d-person-animated.glb';
   const imported=await BABYLON.SceneLoader.ImportMeshAsync(null,rootUrl,fileName,scene);
   const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
   imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;m.computeWorldMatrix(true);});
@@ -49,7 +49,7 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
   groups=imported.animationGroups||[];
   const skinned=geometry.filter(m=>m.skeleton).length;
   const boneCount=imported.skeletons.reduce((n,s)=>n+s.bones.length,0);
-  details.textContent='Source: Grab3D Casual Woman (CC0)\nVisible meshes: '+geometry.length+'\nSkinned meshes: '+skinned+'\nSkeletons: '+imported.skeletons.length+'\nBones: '+boneCount+'\nAnimation groups: '+groups.length+'\nAnimation names: '+(groups.map(g=>g.name).join(', ')||'(none found)')+'\n\nThis is a different character asset with walk/run clips included. The existing Businesswoman 01 is not being modified.';
+  details.textContent='Source: Innerscene Locomotion Collection — Maya (CC0)\nVisible meshes: '+geometry.length+'\nSkinned meshes: '+skinned+'\nSkeletons: '+imported.skeletons.length+'\nBones: '+boneCount+'\nAnimation groups: '+groups.length+'\nAnimation names: '+(groups.map(g=>g.name).join(', ')||'(none found)')+'\n\nThis character and its animation clips are served from this game's own GitHub Pages site, avoiding the blocked third-party model download. The existing Businesswoman 01 and live game remain unchanged.';
   status.textContent='Character loaded — checking real animation clips';status.style.color='#8de6b0';
   const idleGroup=findGroup(/idle|stand|breath/i),walkGroup=findGroup(/walk/i),runGroup=findGroup(/run|jog/i);
   buttons.idle.disabled=!idleGroup;buttons.walk.disabled=!walkGroup;buttons.run.disabled=!runGroup;buttons.stop.disabled=!groups.length;
@@ -59,7 +59,7 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
   console.info('Animated character test',{meshes:geometry.length,skinned,bones:boneCount,animationGroups:groups.map(g=>g.name),height});
  }catch(e){
   status.textContent='Animated model could not be loaded';status.style.color='#ff9b9b';
-  details.textContent='Error: '+String(e&&e.message||e)+'\n\nThe external GLB may be blocked by network/CORS, or its format may be incompatible. This is a test only; the live game remains unchanged.\n\nModel source: https://grab3d.com/models/characters/woman/';
+  details.textContent='Error: '+String(e&&e.message||e)+'\n\nThe local model file could not be loaded. Please send the error details above. The live game remains unchanged.\n\nThe model is intended to be served from this site's assets folder.';
   console.error('Animated character test failed',e);
  }
  engine.runRenderLoop(()=>scene.render());window.addEventListener('resize',()=>engine.resize());
