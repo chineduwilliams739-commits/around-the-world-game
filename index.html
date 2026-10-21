@@ -405,13 +405,13 @@
  // Some source characters include separate glasses or backpacks. Hide only separately
  // named accessory meshes; never hide the face, hair, body, or clothing to guess at a fix.
  function removeUnwantedAccessories(meshes){
+  // Match only the mesh's own name. Matching ancestor names can accidentally hide
+  // entire body/clothing branches in GLBs whose hierarchy groups unrelated parts.
   const accessoryPattern=/\b(glasses|eyeglasses|sunglasses|eyewear|spectacles|backpack|rucksack|back pack)\b/i;
   let removed=0;
   for(const mesh of meshes){
-   let node=mesh,labels=[];
-   while(node){labels.push(node.name||"");node=node.parent;}
-   const label=labels.join(" ");
-   if(accessoryPattern.test(label)){
+   const label=(mesh.name||"").toLowerCase();
+   if(accessoryPattern.test(label)&&!/body|skin|face|head|hair|shirt|coat|jacket|cloth|dress|pant|arm|leg|hand|foot/i.test(label)){
     mesh.setEnabled(false);mesh.isVisible=false;removed++;
    }
   }
@@ -730,13 +730,17 @@
     modelRoot.position.y=driverFloorOffset;
     modelRoot.position.x=0;
     modelRoot.position.z=0;
+    modelRoot.computeWorldMatrix(true);
+    meshes.forEach(mesh=>{
+     mesh.setEnabled(true);mesh.isVisible=true;mesh.visibility=1;mesh.isPickable=false;mesh.checkCollisions=false;
+     mesh.computeWorldMatrix(true);mesh.refreshBoundingInfo(true);
+    });
     styleRigMaterials(meshes,index+2);
     car.driverAnimations=instance.animationGroups||[];
     car.driverModelLoaded=true;
-    car.driverRoot.getChildMeshes(false).forEach(mesh=>{if(!meshes.includes(mesh))mesh.setEnabled(false);});
     setCharacterAnimation(car.driverAnimations,"idle",null);
     car.driverRoot.setEnabled(true);
-    console.info("Loaded clothed traffic driver",{index,meshes:meshes.length,animationGroups:car.driverAnimations.length,scale:driverScale,floorOffset:modelRoot.position.y});
+    console.info("Loaded clothed traffic driver",{index,meshes:meshes.length,animationGroups:car.driverAnimations.length,scale:driverScale,floorOffset:modelRoot.position.y,visibleMeshes:meshes.filter(mesh=>mesh.isVisible&&mesh.isEnabled()).length});
    }catch(error){
     if(modelRoot&&!modelRoot.isDisposed())modelRoot.dispose(false,true);
     else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
