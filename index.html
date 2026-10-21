@@ -423,39 +423,10 @@
   }
  }
  }
- function addCharacterStyle(rigRoot,scale,styleIndex){
-  const detailRoot=new B.TransformNode('characterStyle'+styleIndex,scene);
-  detailRoot.parent=rigRoot;
-  detailRoot.scaling.setAll(1/Math.max(.001,scale));
-  const darkMat=mat('style dark '+styleIndex,'#202832',.42);
-  const metalMat=mat('style metal '+styleIndex,'#d8b46c',.28);
-  const accentMat=mat('style accent '+styleIndex,characterPalettes[styleIndex%characterPalettes.length],.42);
-  const createBox=(name,w,h,d,x,y,z,material)=>{const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.parent=detailRoot;m.position.set(x,y,z);m.material=material;return m;};
-  // Tailored accents, accessories and personal style break up the repeated base silhouette.
-  if(styleIndex%4===0){
-   const cap=B.MeshBuilder.CreateSphere('style cap crown '+styleIndex,{diameter:.34,segments:12},scene);cap.parent=detailRoot;cap.position.set(0,1.72,-.005);cap.scaling.set(1,.46,1);cap.material=accentMat;
-   createBox('style cap brim '+styleIndex,.27,.035,.18,0,1.69,.105,darkMat);
-  }else if(styleIndex%4===1){
-   createBox('style glasses left '+styleIndex,.105,.065,.025,-.075,1.61,.145,darkMat);
-   createBox('style glasses right '+styleIndex,.105,.065,.025,.075,1.61,.145,darkMat);
-   createBox('style glasses bridge '+styleIndex,.055,.018,.025,0,1.61,.15,metalMat);
-  }else if(styleIndex%4===2){
-   createBox('style tie '+styleIndex,.09,.34,.035,0,1.27,.16,accentMat);
-   const knot=B.MeshBuilder.CreateSphere('style tie knot '+styleIndex,{diameter:.085,segments:8},scene);knot.parent=detailRoot;knot.position.set(0,1.46,.16);knot.scaling.y=.72;knot.material=metalMat;
-  }else{
-   const pendant=B.MeshBuilder.CreateTorus('style pendant '+styleIndex,{diameter:.11,thickness:.025,tessellation:12},scene);pendant.parent=detailRoot;pendant.position.set(0,1.39,.17);pendant.rotation.x=Math.PI/2;pendant.material=metalMat;
+  // No fabricated face or back accessories: preserve the imported character's own look.
+  function addCharacterStyle(rigRoot,scale,styleIndex){
+   return null;
   }
-  if(styleIndex%3===1){
-   createBox('style backpack '+styleIndex,.34,.42,.16,0,1.02,-.19,darkMat);
-   createBox('style backpack flap '+styleIndex,.27,.12,.025,0,1.19,-.105,accentMat);
-   createBox('style backpack strap left '+styleIndex,.045,.42,.035,-.13,1.06,-.08,accentMat);
-   createBox('style backpack strap right '+styleIndex,.045,.42,.035,.13,1.06,-.08,accentMat);
-  }else if(styleIndex%3===2){
-   createBox('style crossbody bag '+styleIndex,.25,.28,.1,.27,.91,-.02,darkMat);
-   createBox('style bag flap '+styleIndex,.21,.075,.025,.27,1.02,.04,metalMat);
-  }
-  return detailRoot;
- }
  function buildRigMotion(skeleton,seed){
   if(!skeleton||!skeleton.bones)return null;
   const bones=[];
