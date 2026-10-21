@@ -23,7 +23,10 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
 (async()=>{
  const status=document.getElementById('status'),details=document.getElementById('details'),canvas=document.getElementById('renderCanvas');
  const buttons={idle:document.getElementById('idle'),walk:document.getElementById('walk'),run:document.getElementById('run'),stop:document.getElementById('stop')};
- const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
+ try{
+  if(typeof BABYLON==="undefined")throw new Error("Babylon.js engine script did not load. Check assets/babylon.js in the deployed site.");
+  status.textContent="3D engine loaded — preparing scene…";
+  const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
  const scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.035,.055,.085,1);
  scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.05;scene.imageProcessingConfiguration.contrast=1.12;
  const camera=new BABYLON.ArcRotateCamera('camera',-Math.PI/2,1.12,3.8,new BABYLON.Vector3(0,.9,0),scene);camera.attachControl(canvas,true);camera.lowerRadiusLimit=1.7;camera.upperRadiusLimit=8;camera.wheelPrecision=55;camera.panningSensibility=0;
@@ -35,10 +38,12 @@ h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;co
  let groups=[];
  function playGroup(group){if(!group)return;groups.forEach(g=>{try{g.stop();}catch(e){}});try{group.start(true,1,group.from,group.to,false);status.textContent='Playing: '+group.name;status.style.color='#8de6b0';}catch(e){details.textContent+='\nAnimation start failed: '+group.name+' — '+e.message;}}
  function findGroup(regex){return groups.find(g=>regex.test(String(g.name||'')));}
- try{
-  status.textContent='Loading the locally hosted animated character…';
-  const rootUrl='assets/',fileName='locomotion-collection-maya-3d-person-animated.glb';
-  const imported=await BABYLON.SceneLoader.ImportMeshAsync(null,rootUrl,fileName,scene);
+  status.textContent="3D scene ready — downloading character model (about 20 MB)…";
+  const rootUrl="assets/",fileName="locomotion-collection-maya-3d-person-animated.glb";
+  const imported=await BABYLON.SceneLoader.ImportMeshAsync(null,rootUrl,fileName,scene,evt=>{
+   if(evt&&evt.lengthComputable&&evt.total>0){status.textContent="Downloading character model… "+Math.round(evt.loaded/evt.total*100)+"%";}
+   else if(evt&&evt.loaded){status.textContent="Downloading character model… "+Math.round(evt.loaded/1048576)+" MB received";}
+  });
   const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
   imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;m.computeWorldMatrix(true);});
   const modelRoot=imported.meshes.find(m=>!m.parent)||imported.meshes[0];
