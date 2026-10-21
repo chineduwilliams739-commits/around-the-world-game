@@ -31,6 +31,10 @@ jobs:
             --output assets/locomotion-collection-maya-3d-person-animated.glb
           test "$(wc -c < assets/locomotion-collection-maya-3d-person-animated.glb)" -gt 1000000
           curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
+            "https://www.innerscene.com/api/library/locomotion-collection-sam-3d-person-animated-dc23800f/download" \
+            --output assets/locomotion-collection-sam-3d-person-animated.glb
+          test "$(wc -c < assets/locomotion-collection-sam-3d-person-animated.glb)" -gt 1000000
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
             "https://cdn.babylonjs.com/babylon.js" --output assets/babylon.js
           test "$(wc -c < assets/babylon.js)" -gt 100000
           curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
