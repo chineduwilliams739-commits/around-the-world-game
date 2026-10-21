@@ -10,15 +10,15 @@ const status=document.getElementById('status'),details=document.getElementById('
 const buttons={idle:document.getElementById('idle'),walk:document.getElementById('walk'),run:document.getElementById('run'),stop:document.getElementById('stop')};
 function fail(step,e){status.textContent='FAILED: '+step;status.style.color='#ff9b9b';details.textContent=String(e&&e.message||e||'Unknown error')+'\n\nPlease send a screenshot of this message. The main game has not been changed.';}
 function timeout(p,ms,label){return Promise.race([p,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds')),ms))]);}
-function loadScript(src){return timeout(new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error('Could not load '+src+' (check the deployed file path/network).'));document.head.appendChild(s);}),15000,'Script '+src);}
+function loadScript(src,ms){return timeout(new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src+'?v=96';s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Could not load '+src+' (the deployed file may be missing or the network may have interrupted the download).'));document.head.appendChild(s);}),ms,'Script '+src);}
 (async()=>{
 let engine,scene;
 try{
- status.textContent='Step 1/4: Loading local Babylon.js engine…';
- await loadScript('assets/babylon.js');
+ status.textContent='Step 1/4: Loading local Babylon.js engine (large file; may take up to 60 seconds)…';
+ await loadScript('assets/babylon.js',60000);
  if(!window.BABYLON)throw new Error('Babylon.js script loaded but window.BABYLON is missing.');
  status.textContent='Step 2/4: Loading local 3D model loader…';
- await loadScript('assets/babylonjs.loaders.min.js');
+ await loadScript('assets/babylonjs.loaders.min.js',30000);
  status.textContent='Step 3/4: Starting graphics…';
  engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
  scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.035,.055,.085,1);
