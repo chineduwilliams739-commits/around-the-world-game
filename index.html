@@ -175,7 +175,7 @@
   }
   // No primitive driver placeholder is ever shown, including while GLBs download or fail.
   driverRoot.getChildMeshes(false).forEach(mesh=>mesh.setEnabled(false));
-  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,driverAnimations:[],driverModelLoaded:false,fleeing:false,fleeTime:0,driverSide:index%2===0?1:-1,speedCurrent:0,driverGone:false};
+  return {root,wheels,z:config.z,direction:config.direction,speed:config.speed,x:config.x,driverRoot,driverArms,driverLegs,driverAnimations:[],driverModelLoaded:false,fleeing:false,fleeTime:0,fleeStarted:false,driverSide:index%2===0?1:-1,speedCurrent:0,driverGone:false};
  }
  const traffic=[
   createTrafficCar(0,{x:-4.4,z:-65,direction:1,speed:9.2}),
@@ -197,27 +197,35 @@
    // If the player enters before this car's clothed GLB has finished loading,
    // keep the escape pending. Never consume the escape timer while the driver is invisible.
    if(!car.driverModelLoaded){
+    // Keep the escape queued, but do not let an invisible driver consume its escape time.
     d.setEnabled(false);
     continue;
    }
-   // Once the rig is ready, show it outside the vehicle and run away on foot.
+   // Rebase the driver beside the car at the start of the escape, not inside its body.
+   if(!car.fleeStarted){
+    d.position.set(
+     car.root.position.x+car.driverSide*1.85,
+     0,
+     car.root.position.z+car.direction*.35
+    );
+    d.rotation.y=Math.atan2(car.driverSide,car.direction);
+    car.fleeStarted=true;
+   }
    d.setEnabled(true);
    car.fleeTime+=dt;
-   const runSpeed=car.fleeTime<.35?1.6:4.4;
+   const runSpeed=car.fleeTime<.25?2.2:5.2;
    const moveX=car.driverSide*runSpeed*dt;
-   const moveZ=(-Math.cos(car.root.rotation.y)*.25)*dt;
+   const moveZ=car.direction*.55*runSpeed*dt;
    d.position.x+=moveX;
    d.position.z+=moveZ;
    d.rotation.y=Math.atan2(moveX,moveZ);
    if(car.driverAnimations&&car.driverAnimations.length){
+    const before=car.driverCurrentAnimation;
     car.driverCurrentAnimation=setCharacterAnimation(car.driverAnimations,"run",car.driverCurrentAnimation);
-   }else{
-    // The clothed rig remains visible even if this GLB has no animation clips.
-    // Add a small visible running bounce until proper run clips are available.
-    d.position.y=.04+Math.abs(Math.sin(car.fleeTime*12))*.07;
-    d.rotation.z=Math.sin(car.fleeTime*12)*.035;
+    // If there is no named run clip, setCharacterAnimation selects the best available
+    // clip; the transform still travels clearly away from the vehicle.
    }
-   if(car.fleeTime>5.5){d.setEnabled(false);car.fleeing=false;car.driverGone=true;}
+   if(car.fleeTime>7){d.setEnabled(false);car.fleeing=false;car.driverGone=true;car.fleeStarted=false;}
   }
  }
  function updateTraffic(dt){
@@ -900,9 +908,12 @@
      const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=player;camera.alpha=-car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
    }else if(nearbyInteraction.action==='vehicleEnter'){
      activeVehicle=nearbyInteraction.vehicle;vehicleSpeed=0;activeVehicle.speedCurrent=0;
-     if(!activeVehicle.driverGone){activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.driverRoot.setEnabled(true);
-      activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.65,0,activeVehicle.root.position.z);
-      activeVehicle.driverRoot.rotation.y=activeVehicle.root.rotation.y;}
+     if(!activeVehicle.driverGone){
+      activeVehicle.fleeing=true;activeVehicle.fleeTime=0;activeVehicle.fleeStarted=false;
+      activeVehicle.driverRoot.setEnabled(!!activeVehicle.driverModelLoaded);
+      activeVehicle.driverRoot.position.set(activeVehicle.root.position.x+activeVehicle.driverSide*1.85,0,activeVehicle.root.position.z+activeVehicle.direction*.35);
+      activeVehicle.driverRoot.rotation.y=Math.atan2(activeVehicle.driverSide,activeVehicle.direction);
+     }
      player.position.set(activeVehicle.root.position.x,0,activeVehicle.root.position.z);player.setEnabled(false);
      camera.lockedTarget=null;camera.target.set(activeVehicle.root.position.x,1.5,activeVehicle.root.position.z);camera.alpha=-activeVehicle.root.rotation.y-Math.PI/2;camera.beta=1.08;camera.radius=12;
      showToast('You pull the driver out. They scramble away as you take the wheel. Hold ▲ / W to accelerate; steer left or right.');return;
