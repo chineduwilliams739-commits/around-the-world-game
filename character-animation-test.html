@@ -1,73 +1,52 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>AROUND THE WORLD — Animated Character Test</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>AROUND THE WORLD — Character Diagnostic</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1018;color:#edf3fa;font:14px system-ui,sans-serif}
-#renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}
-#panel{position:fixed;left:12px;top:12px;max-width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 100px);overflow:auto;padding:14px 16px;border:1px solid #ffffff20;border-radius:14px;background:#0b1524ef;box-shadow:0 10px 36px #0008}
-h1{font-size:15px;letter-spacing:.05em;margin:0 0 8px}#status{font-weight:700;color:#ffd27a;margin-bottom:8px}#details{color:#c6d2df;line-height:1.5;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
-.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{padding:9px 12px;border:1px solid #7ab8f5;border-radius:9px;background:#16314b;color:#fff;font:600 13px system-ui;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}
-#hint{position:fixed;bottom:12px;left:12px;padding:8px 11px;border-radius:10px;background:#0b1524d9;color:#d8e4f1;font-size:12px}
-</style>
-</head>
-<body>
-<canvas id="renderCanvas"></canvas>
-<section id="panel"><h1>AROUND THE WORLD · REAL ANIMATION TEST</h1><div id="status">Loading the locally hosted animated character…</div><div id="details">This is a separate test page. The live game is not being changed.</div><div class="controls"><button id="idle" disabled>Idle / Stand</button><button id="walk" disabled>Walk</button><button id="run" disabled>Run</button><button id="stop" disabled>Stop animation</button></div></section>
-<div id="hint">Drag to orbit · Pinch to zoom · Test page only</div>
-<script src="assets/babylon.js"></script>
-<script src="assets/babylonjs.loaders.min.js"></script>
+:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1018;color:#edf3fa;font:14px system-ui,sans-serif}#renderCanvas{width:100%;height:100%;display:block;touch-action:none}#panel{position:fixed;left:12px;top:12px;max-width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 30px);overflow:auto;padding:14px 16px;border:1px solid #ffffff20;border-radius:14px;background:#0b1524ef;box-shadow:0 10px 36px #0008}h1{font-size:15px;margin:0 0 8px}#status{font-weight:700;color:#ffd27a;margin-bottom:8px}#details{color:#c6d2df;line-height:1.5;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}button{margin:8px 5px 0 0;padding:9px 12px;border:1px solid #7ab8f5;border-radius:9px;background:#16314b;color:#fff;font-weight:600}button:disabled{opacity:.4}
+</style></head><body><canvas id="renderCanvas"></canvas>
+<section id="panel"><h1>AROUND THE WORLD · CHARACTER DIAGNOSTIC</h1><div id="status">Diagnostic page started. Preparing 3D engine…</div><div id="details">If loading stalls, this page will show which step timed out. The live game is unchanged.</div><div><button id="idle" disabled>Idle / Stand</button><button id="walk" disabled>Walk</button><button id="run" disabled>Run</button><button id="stop" disabled>Stop</button></div></section>
 <script>
+(function(){
+const status=document.getElementById('status'),details=document.getElementById('details'),canvas=document.getElementById('renderCanvas');
+const buttons={idle:document.getElementById('idle'),walk:document.getElementById('walk'),run:document.getElementById('run'),stop:document.getElementById('stop')};
+function fail(step,e){status.textContent='FAILED: '+step;status.style.color='#ff9b9b';details.textContent=String(e&&e.message||e||'Unknown error')+'\n\nPlease send a screenshot of this message. The main game has not been changed.';}
+function timeout(p,ms,label){return Promise.race([p,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds')),ms))]);}
+function loadScript(src){return timeout(new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error('Could not load '+src+' (check the deployed file path/network).'));document.head.appendChild(s);}),15000,'Script '+src);}
 (async()=>{
- const status=document.getElementById('status'),details=document.getElementById('details'),canvas=document.getElementById('renderCanvas');
- const buttons={idle:document.getElementById('idle'),walk:document.getElementById('walk'),run:document.getElementById('run'),stop:document.getElementById('stop')};
- try{
-  if(typeof BABYLON==="undefined")throw new Error("Babylon.js engine script did not load. Check assets/babylon.js in the deployed site.");
-  status.textContent="3D engine loaded — preparing scene…";
-  const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
- const scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.035,.055,.085,1);
- scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.05;scene.imageProcessingConfiguration.contrast=1.12;
- const camera=new BABYLON.ArcRotateCamera('camera',-Math.PI/2,1.12,3.8,new BABYLON.Vector3(0,.9,0),scene);camera.attachControl(canvas,true);camera.lowerRadiusLimit=1.7;camera.upperRadiusLimit=8;camera.wheelPrecision=55;camera.panningSensibility=0;
- const hemi=new BABYLON.HemisphericLight('ambient',new BABYLON.Vector3(0,1,0),scene);hemi.intensity=.9;
- const key=new BABYLON.DirectionalLight('key',new BABYLON.Vector3(-.5,-1,.4),scene);key.position=new BABYLON.Vector3(3,6,-3);key.intensity=1.5;
- const fill=new BABYLON.PointLight('fill',new BABYLON.Vector3(-3,2,2),scene);fill.intensity=18;fill.diffuse=new BABYLON.Color3(.45,.65,1);
- const ground=BABYLON.MeshBuilder.CreateGround('ground',{width:12,height:12},scene);const gm=new BABYLON.PBRMaterial('groundMat',scene);gm.albedoColor=new BABYLON.Color3(.055,.075,.095);gm.roughness=.95;ground.material=gm;
- const grid=BABYLON.MeshBuilder.CreateGround('grid',{width:12,height:12,subdivisions:12},scene);const grm=new BABYLON.StandardMaterial('gridMat',scene);grm.wireframe=true;grm.emissiveColor=new BABYLON.Color3(.12,.2,.28);grm.alpha=.18;grid.material=grm;grid.position.y=.006;
- let groups=[];
- function playGroup(group){if(!group)return;groups.forEach(g=>{try{g.stop();}catch(e){}});try{group.start(true,1,group.from,group.to,false);status.textContent='Playing: '+group.name;status.style.color='#8de6b0';}catch(e){details.textContent+='\nAnimation start failed: '+group.name+' — '+e.message;}}
- function findGroup(regex){return groups.find(g=>regex.test(String(g.name||'')));}
-  status.textContent="3D scene ready — downloading character model (about 20 MB)…";
-  const rootUrl="assets/",fileName="locomotion-collection-maya-3d-person-animated.glb";
-  const imported=await BABYLON.SceneLoader.ImportMeshAsync(null,rootUrl,fileName,scene,evt=>{
-   if(evt&&evt.lengthComputable&&evt.total>0){status.textContent="Downloading character model… "+Math.round(evt.loaded/evt.total*100)+"%";}
-   else if(evt&&evt.loaded){status.textContent="Downloading character model… "+Math.round(evt.loaded/1048576)+" MB received";}
-  });
-  const geometry=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
-  imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;m.computeWorldMatrix(true);});
-  const modelRoot=imported.meshes.find(m=>!m.parent)||imported.meshes[0];
-  const bounds=modelRoot.getHierarchyBoundingVectors(true),height=bounds.max.y-bounds.min.y;
-  if(!Number.isFinite(height)||height<.3)throw new Error('Model bounds invalid; measured height '+height);
-  const wrapper=new BABYLON.TransformNode('previewWrapper',scene);modelRoot.parent=wrapper;const scale=1.8/height;wrapper.scaling.setAll(scale);wrapper.position.set(-((bounds.min.x+bounds.max.x)/2)*scale,-bounds.min.y*scale,-((bounds.min.z+bounds.max.z)/2)*scale);wrapper.computeWorldMatrix(true);
-  camera.setTarget(new BABYLON.Vector3(0,.92,0));
-  groups=imported.animationGroups||[];
-  const skinned=geometry.filter(m=>m.skeleton).length;
-  const boneCount=imported.skeletons.reduce((n,s)=>n+s.bones.length,0);
-  details.textContent='Source: Innerscene Locomotion Collection — Maya (CC0)\nVisible meshes: '+geometry.length+'\nSkinned meshes: '+skinned+'\nSkeletons: '+imported.skeletons.length+'\nBones: '+boneCount+'\nAnimation groups: '+groups.length+'\nAnimation names: '+(groups.map(g=>g.name).join(', ')||'(none found)')+'\n\nThis character and its animation clips are served from this game's own GitHub Pages site, avoiding the blocked third-party model download. The existing Businesswoman 01 and live game remain unchanged.';
-  status.textContent='Character loaded — checking real animation clips';status.style.color='#8de6b0';
-  const idleGroup=findGroup(/idle|stand|breath/i),walkGroup=findGroup(/walk/i),runGroup=findGroup(/run|jog/i);
-  buttons.idle.disabled=!idleGroup;buttons.walk.disabled=!walkGroup;buttons.run.disabled=!runGroup;buttons.stop.disabled=!groups.length;
-  buttons.idle.onclick=()=>playGroup(idleGroup);buttons.walk.onclick=()=>playGroup(walkGroup);buttons.run.onclick=()=>playGroup(runGroup);
-  buttons.stop.onclick=()=>{groups.forEach(g=>g.stop());status.textContent='Animation stopped';status.style.color='#ffd27a';};
-  if(idleGroup)playGroup(idleGroup);else if(walkGroup)playGroup(walkGroup);else if(runGroup)playGroup(runGroup);else status.textContent='Model loaded, but no animation groups were exposed';
-  console.info('Animated character test',{meshes:geometry.length,skinned,bones:boneCount,animationGroups:groups.map(g=>g.name),height});
- }catch(e){
-  status.textContent='Animated model could not be loaded';status.style.color='#ff9b9b';
-  details.textContent='Error: '+String(e&&e.message||e)+'\n\nThe local model file could not be loaded. Please send the error details above. The live game remains unchanged.\n\nThe model is intended to be served from this site's assets folder.';
-  console.error('Animated character test failed',e);
- }
- engine.runRenderLoop(()=>scene.render());window.addEventListener('resize',()=>engine.resize());
+let engine,scene;
+try{
+ status.textContent='Step 1/4: Loading local Babylon.js engine…';
+ await loadScript('assets/babylon.js');
+ if(!window.BABYLON)throw new Error('Babylon.js script loaded but window.BABYLON is missing.');
+ status.textContent='Step 2/4: Loading local 3D model loader…';
+ await loadScript('assets/babylonjs.loaders.min.js');
+ status.textContent='Step 3/4: Starting graphics…';
+ engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,antialias:true});
+ scene=new BABYLON.Scene(engine);scene.clearColor=new BABYLON.Color4(.035,.055,.085,1);
+ const camera=new BABYLON.ArcRotateCamera('camera',-Math.PI/2,1.12,3.8,new BABYLON.Vector3(0,.9,0),scene);camera.attachControl(canvas,true);camera.lowerRadiusLimit=1.7;camera.upperRadiusLimit=8;
+ const hemi=new BABYLON.HemisphericLight('ambient',new BABYLON.Vector3(0,1,0),scene);hemi.intensity=1;
+ const key=new BABYLON.DirectionalLight('key',new BABYLON.Vector3(-.5,-1,.4),scene);key.position=new BABYLON.Vector3(3,6,-3);key.intensity=1.4;
+ const ground=BABYLON.MeshBuilder.CreateGround('ground',{width:12,height:12},scene);const mat=new BABYLON.StandardMaterial('groundMat',scene);mat.diffuseColor=new BABYLON.Color3(.08,.11,.14);ground.material=mat;
+ engine.runRenderLoop(()=>{if(scene)scene.render()});window.addEventListener('resize',()=>engine.resize());
+ status.textContent='Step 4/4: Downloading character model…';
+ const modelPromise=BABYLON.SceneLoader.ImportMeshAsync(null,'assets/','locomotion-collection-maya-3d-person-animated.glb',scene,evt=>{
+  if(evt&&evt.lengthComputable&&evt.total>0)status.textContent='Step 4/4: Downloading model '+Math.round(evt.loaded/evt.total*100)+'%…';
+  else if(evt&&evt.loaded)status.textContent='Step 4/4: Downloading model ('+Math.round(evt.loaded/1048576)+' MB)…';
+ });
+ const imported=await timeout(modelPromise,60000,'Character model download/load');
+ const meshes=imported.meshes.filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
+ if(!meshes.length)throw new Error('The model file loaded but contains no visible geometry.');
+ imported.meshes.forEach(m=>{m.setEnabled(true);m.isVisible=true;m.visibility=1;m.isPickable=false;});
+ const root=imported.meshes.find(m=>!m.parent)||imported.meshes[0],bounds=root.getHierarchyBoundingVectors(true),height=bounds.max.y-bounds.min.y;
+ if(!Number.isFinite(height)||height<.3)throw new Error('Invalid model bounds; measured height '+height);
+ const wrapper=new BABYLON.TransformNode('previewWrapper',scene);root.parent=wrapper;const scale=1.8/height;wrapper.scaling.setAll(scale);wrapper.position.set(-((bounds.min.x+bounds.max.x)/2)*scale,-bounds.min.y*scale,-((bounds.min.z+bounds.max.z)/2)*scale);
+ camera.setTarget(new BABYLON.Vector3(0,.9,0));
+ const groups=imported.animationGroups||[],find=re=>groups.find(g=>re.test(String(g.name||''))),idle=find(/idle|stand|breath/i),walk=find(/walk/i),run=find(/run|jog/i);
+ details.textContent='Model loaded successfully.\nMeshes: '+meshes.length+'\nSkinned meshes: '+meshes.filter(m=>m.skeleton).length+'\nSkeletons: '+imported.skeletons.length+'\nAnimation groups: '+groups.length+'\nAnimation names: '+(groups.map(g=>g.name).join(', ')||'(none)')+'\nModel height: '+height.toFixed(2);
+ function play(g){groups.forEach(x=>x.stop());if(g){g.start(true);status.textContent='Character loaded — playing '+g.name;status.style.color='#8de6b0';}else status.textContent='Character loaded, but this animation was not found.';}
+ buttons.idle.disabled=!idle;buttons.walk.disabled=!walk;buttons.run.disabled=!run;buttons.stop.disabled=!groups.length;
+ buttons.idle.onclick=()=>play(idle);buttons.walk.onclick=()=>play(walk);buttons.run.onclick=()=>play(run);buttons.stop.onclick=()=>{groups.forEach(g=>g.stop());status.textContent='Animation stopped';};
+ if(idle)play(idle);else if(walk)play(walk);else if(run)play(run);else{status.textContent='Model loaded, but no animation clips found';status.style.color='#ffd27a';}
+}catch(e){fail(status.textContent,e);}
 })();
-</script>
-</body></html>
+})();
+</script></body></html>
