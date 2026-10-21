@@ -604,7 +604,13 @@
    // Alternate feminine and masculine clothed rigs so the city does not clone one look.
    const modelVariant=npc.index%2===0?"maya":"sam";
    try{
-    const container=await getCharacterContainer(modelVariant);
+    let container;
+    try{container=await getCharacterContainer(modelVariant);}
+    catch(primaryLoadError){
+     const alternateVariant=modelVariant==="maya"?"sam":"maya";
+     console.warn("Resident model variant failed; trying alternate clothed rig",{index:npc.index,modelVariant,alternateVariant,error:primaryLoadError});
+     container=await getCharacterContainer(alternateVariant);
+    }
     instance=container.instantiateModelsToScene(name=>name+"_resident"+npc.index,true);
     const roots=[...(instance.rootNodes||[])];
     const visibleMeshes=characterMeshes(instance);
