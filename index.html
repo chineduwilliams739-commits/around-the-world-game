@@ -281,6 +281,35 @@
  building(-28,-2,17,16,18,cream,4,true);box('Civic hall steps',-28,.18,-10,13,.36,4,concrete,false);
  box('Civic hall sign',-28,3,-10.2,8,.45,.15,gold,false);
  building(29,2,16,15,14,concrete,3,true);
+  // Framed, hinged glass doors that swing open smoothly as the player approaches.
+  const entranceMetal=mat('entrance door frame','#65747b',.38);
+  const entranceDoors=[];
+  function makeEntranceDoorSet(label,x,z){
+    const w=2.82,h=2.72;
+    const left=new B.TransformNode(label+' left door hinge',scene);
+    const right=new B.TransformNode(label+' right door hinge',scene);
+    left.position.set(x-w/2,0,z);right.position.set(x+w/2,0,z);
+    function panel(pivot,side){
+      const pane=box(label+' glass pane',0,0,0,w,h,.09,glass,false);pane.parent=pivot;pane.position.set(side*w/2,h/2,0);
+      const top=box(label+' top frame',0,0,0,w,.1,.13,entranceMetal,false);top.parent=pivot;top.position.set(side*w/2,h-.05,0);
+      const bottom=box(label+' bottom frame',0,0,0,w,.13,.13,entranceMetal,false);bottom.parent=pivot;bottom.position.set(side*w/2,.065,0);
+      const handle=box(label+' handle',0,0,0,.07,.42,.1,entranceMetal,false);handle.parent=pivot;handle.position.set(side*(w-.25),1.32,.09);
+    }
+    panel(left,1);panel(right,-1);
+    for(const dx of [-3.08,3.08])box(label+' side jamb',x+dx,1.4,z,.16,2.9,.2,entranceMetal,false);
+    box(label+' top header',x,2.9,z,6.32,.18,.22,entranceMetal,false);
+    entranceDoors.push({x,z,left,right,open:0});
+  }
+  makeEntranceDoorSet('Civic Hall',-28,-9.75);
+  makeEntranceDoorSet('Downtown Shop',29,-5.2);
+  function updateEntranceDoors(dt){
+    for(const door of entranceDoors){
+      const d=Math.hypot(player.position.x-door.x,player.position.z-door.z);
+      const target=d<5.5?1:0;door.open+=(target-door.open)*Math.min(1,dt*3.5);
+      door.left.rotation.y=door.open*1.12;door.right.rotation.y=-door.open*1.12;
+    }
+  }
+
  // Park and waterfront promenade
  box('neighborhood park',-42,.04,35,24,.08,28,grass,false);
  for(let x=-51;x<=-33;x+=6)for(let z=26;z<=44;z+=6){
@@ -1125,16 +1154,16 @@
    else{
      camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
      if(insideCivicHall||insideShop){
-       // Indoors, keep the orbit behind the resident and prevent it crossing the walls.
+       // Wider third-person composition: show the whole resident and more of the room.
        const wantedAlpha=-player.rotation.y-Math.PI/2;
        const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
-       camera.alpha+=alphaDelta*Math.min(1,dt*4.5);
-       camera.beta+=(1.18-camera.beta)*Math.min(1,dt*3);
-       camera.radius+=(3.8-camera.radius)*Math.min(1,dt*4);
+       camera.alpha+=alphaDelta*Math.min(1,dt*3.8);
+       camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
+       camera.radius+=(5.4-camera.radius)*Math.min(1,dt*2.8);
      }
    }
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
-   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);refreshInteraction();updateMap();
+   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);updateEntranceDoors(dt);refreshInteraction();updateMap();
    const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
    posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
    scene.render();
