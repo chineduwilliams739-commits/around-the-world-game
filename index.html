@@ -1169,12 +1169,18 @@
    else{
      camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
      if(insideCivicHall||insideShop){
-       // Wider third-person composition: show the whole resident and more of the room.
+       // Frame the resident and room together; shorten the orbit only when a wall is close.
        const wantedAlpha=-player.rotation.y-Math.PI/2;
        const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
-       camera.alpha+=alphaDelta*Math.min(1,dt*3.8);
-       camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
-       camera.radius+=(5.4-camera.radius)*Math.min(1,dt*2.8);
+       camera.alpha+=alphaDelta*Math.min(1,dt*3.8);camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
+       const bounds=insideShop?{left:21.1,right:36.9,front:-5.25,back:9.25}:{left:-36.2,right:-19.8,front:-10,back:5.8};
+       const dx=Math.cos(camera.alpha),dz=Math.sin(camera.alpha),flat=Math.sin(camera.beta),px=player.position.x,pz=player.position.z,margin=.65;
+       let safeRadius=5.8;
+       if(dx>.001)safeRadius=Math.min(safeRadius,(bounds.right-px-margin)/Math.max(.01,dx*flat));
+       else if(dx<-.001)safeRadius=Math.min(safeRadius,(px-bounds.left-margin)/Math.max(.01,-dx*flat));
+       if(dz>.001)safeRadius=Math.min(safeRadius,(bounds.back-pz-margin)/Math.max(.01,dz*flat));
+       else if(dz<-.001)safeRadius=Math.min(safeRadius,(pz-bounds.front-margin)/Math.max(.01,-dz*flat));
+       safeRadius=B.Scalar.Clamp(safeRadius,1.4,5.8);camera.radius+=(safeRadius-camera.radius)*Math.min(1,dt*3.2);
      }
    }
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
