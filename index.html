@@ -508,8 +508,8 @@
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
-  // Never flash a procedural mannequin while the clothed rig downloads.
-  proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
+  // Keep a visible avatar while the detailed rig downloads, then replace it on success.
+  proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
   let instance=null,rigRoot=null;
   try{
    const container=await getCharacterContainer("maya");
@@ -548,7 +548,7 @@
   }catch(error){
    if(rigRoot&&!rigRoot.isDisposed())rigRoot.dispose(false,true);
    else if(instance)(instance.rootNodes||[]).forEach(root=>{if(root&&!root.isDisposed())root.dispose(false,true);});
-   proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
+   proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
    playerRigLoaded=false;
    const detail=(error&&(error.message||error.toString()))||"unknown model-loading error";
    console.error("3D PLAYER MODEL LOAD FAILED:",error);
@@ -928,21 +928,14 @@
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
  function setInteriorCamera(entering){
-   camera.lockedTarget=player;
-   if(entering){
-     // Keep the camera inside the building and close behind the resident.
-     camera.lowerRadiusLimit=3.1;camera.upperRadiusLimit=5.2;
-     camera.radius=3.8;camera.beta=1.18;
-     camera.alpha=-player.rotation.y-Math.PI/2;
-     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   }else{
-     camera.lowerRadiusLimit=5;camera.upperRadiusLimit=14;
-     camera.radius=10;camera.beta=1.18;
-     camera.alpha=-player.rotation.y-Math.PI/2;
-     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
-   }
- }
- function interact(){
+    camera.lockedTarget=player;
+    camera.lowerRadiusLimit=entering?2.8:5;camera.upperRadiusLimit=entering?6.2:14;
+    camera.radius=entering?5.4:10;camera.beta=entering?1.22:1.18;
+    camera.fov=entering ? 0.92 : 0.8;
+    camera.alpha=-player.rotation.y-Math.PI/2;
+    camera.target.copyFrom(player.position.add(new B.Vector3(0,1.12,0)));
+  }
+  function interact(){
    if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='vehicleExit'){
      const car=activeVehicle;player.position.set(B.Scalar.Clamp(car.root.position.x+Math.cos(car.root.rotation.y)*2.5,-82,82),0,B.Scalar.Clamp(car.root.position.z-Math.sin(car.root.rotation.y)*2.5,-82,82));player.rotation.y=car.root.rotation.y;player.setEnabled(true);activeVehicle=null;vehicleSpeed=0;camera.lockedTarget=player;camera.alpha=-car.root.rotation.y-Math.PI/2;camera.radius=10;showToast('You stepped out of the car.');return;
@@ -1063,18 +1056,12 @@
   });
  });
  let last=performance.now(),walk=0,firstFrameRendered=false;
- // Keep the opening screen up until the player rig and at least two nearby resident rigs are ready.
- // This prevents an empty city from being shown while the first characters download.
- function hasOpeningCharactersReady(){
-  if(!playerRigLoaded)return false;
-  const px=player.position.x,pz=player.position.z;
-  return residents.filter(npc=>npc.rigged&&Math.hypot(npc.root.position.x-px,npc.root.position.z-pz)<38).length>=2;
- }
- // Never make the first playable frame depend on every external asset finishing.
- // Load the clothed CC0 rig asynchronously; the city remains playable during download.
+ // The world opens quickly; nearby residents and vehicle occupants stream in afterward.
+ const openingStartedAt=performance.now();
+ function hasOpeningCharactersReady(){return playerRigLoaded||performance.now()-openingStartedAt>1400;}
  upgradePlayerModel();
  upgradeResidentModels();
- upgradeTrafficDriverModels();
+ setTimeout(()=>upgradeTrafficDriverModels(),2200);
  // The city renders immediately, but no primitive human placeholders are ever displayed.
  engine.runRenderLoop(()=>{
    const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
