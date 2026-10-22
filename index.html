@@ -927,6 +927,21 @@
    interactionHint.style.display=nearbyInteraction?'block':'none';
    if(nearbyInteraction)interactionHint.textContent='E / INTERACT · '+nearbyInteraction.name;
  }
+ function setInteriorCamera(entering){
+   camera.lockedTarget=player;
+   if(entering){
+     // Keep the camera inside the building and close behind the resident.
+     camera.lowerRadiusLimit=3.1;camera.upperRadiusLimit=5.2;
+     camera.radius=3.8;camera.beta=1.18;
+     camera.alpha=-player.rotation.y-Math.PI/2;
+     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+   }else{
+     camera.lowerRadiusLimit=5;camera.upperRadiusLimit=14;
+     camera.radius=10;camera.beta=1.18;
+     camera.alpha=-player.rotation.y-Math.PI/2;
+     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+   }
+ }
  function interact(){
    if(!nearbyInteraction){showToast('Approach a resident, vehicle, or visit Civic Hall, Green Park, or the Downtown Shop');return;}
    if(nearbyInteraction.action==='vehicleExit'){
@@ -966,16 +981,16 @@
      const friendshipNote=npc.playerMeetings>=4?' We’re becoming good friends!':'';
      showToast(npc.name+': “'+greeting+timeNote+friendshipNote+'”');
    }else if(nearbyInteraction.action==='enter'){
-     insideCivicHall=true;player.position.set(-28,0,-4.5);camera.alpha=-Math.PI/2;
-     showToast('Entered Civic Hall · Explore the lobby and approach the service desk');
+     insideCivicHall=true;insideShop=false;player.position.set(-28,0,-4.5);player.rotation.y=0;setInteriorCamera(true);
+     showToast('Entered Civic Hall · The camera now follows you inside. Explore the lobby and approach the service desk');
    }else if(nearbyInteraction.action==='exit'){
-     insideCivicHall=false;player.position.set(-28,0,-14.2);
+     insideCivicHall=false;player.position.set(-28,0,-14.2);setInteriorCamera(false);
      showToast('You are back outside Civic Hall');
    }else if(nearbyInteraction.action==='enterShop'){
-     insideShop=true;player.position.set(29,0,-3.6);player.rotation.y=0;
-     showToast('Entered Downtown Shop · Explore the shop floor and approach the counter');
+     insideShop=true;insideCivicHall=false;player.position.set(29,0,-1.2);player.rotation.y=0;setInteriorCamera(true);
+     showToast('Entered Downtown Shop · The camera now follows you inside. Explore the shop floor and approach the counter');
    }else if(nearbyInteraction.action==='exitShop'){
-     insideShop=false;player.position.set(29,0,-7.5);player.rotation.y=Math.PI;
+     insideShop=false;player.position.set(29,0,-7.5);player.rotation.y=Math.PI;setInteriorCamera(false);
      showToast('You are back outside Downtown Shop');
    }else if(nearbyInteraction.action==='shopDesk'){
      if(!profileData){showToast('Create your resident profile first, then speak to the shop manager.');openProfile();return;}
@@ -1119,7 +1134,18 @@
      playerHands.forEach((hand,i)=>hand.position.y=-.79+Math.sin(walk+(i*Math.PI))*.035);
    }else{if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,"idle",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
    // Keep camera focused on the avatar without moving the world.
-   camera.target.copyFrom(activeVehicle?activeVehicle.root.position.add(new B.Vector3(0,1.15,0)):player.position.add(new B.Vector3(0,1.2,0)));
+   if(activeVehicle){camera.target.copyFrom(activeVehicle.root.position.add(new B.Vector3(0,1.15,0)));}
+   else{
+     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+     if(insideCivicHall||insideShop){
+       // Indoors, keep the orbit behind the resident and prevent it crossing the walls.
+       const wantedAlpha=-player.rotation.y-Math.PI/2;
+       const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+       camera.alpha+=alphaDelta*Math.min(1,dt*4.5);
+       camera.beta+=(1.18-camera.beta)*Math.min(1,dt*3);
+       camera.radius+=(3.8-camera.radius)*Math.min(1,dt*4);
+     }
+   }
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
    updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);refreshInteraction();updateMap();
    const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
