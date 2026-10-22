@@ -89,9 +89,37 @@
 <script src="./assets/babylon.js"></script>
 <script src="./assets/babylonjs.loaders.min.js"></script>
 <script>
+(function(){
+ const loading=document.getElementById('loading');
+ function showStartupError(title,detail){
+  if(!loading||loading.style.display==='none')return;
+  loading.style.display='grid';
+  loading.innerHTML='';
+  const card=document.createElement('div');
+  card.style.cssText='max-width:min(680px,90vw);padding:22px;border:1px solid #e7b96b;border-radius:16px;background:#14232d;color:#f5f7fa;text-align:left;box-shadow:0 12px 40px #0008;font:14px/1.5 system-ui,sans-serif';
+  const heading=document.createElement('strong');heading.textContent='AROUND THE WORLD — '+title;heading.style.cssText='display:block;color:#ffd58a;font-size:16px;margin-bottom:10px';
+  const message=document.createElement('pre');message.textContent=String(detail||'No additional error details were provided.');message.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:38vh;overflow:auto;margin:0;color:#dce7ed;font:12px/1.5 ui-monospace,monospace';
+  const hint=document.createElement('p');hint.textContent='This diagnostic is safe to screenshot and send. It identifies the startup failure so it can be fixed directly.';hint.style.cssText='margin:12px 0 0;color:#b7c9d5;font-size:12px';
+  card.append(heading,message,hint);loading.append(card);
+ }
+ window.addEventListener('error',function(e){
+  if(e.target&&e.target!==window){
+   const target=e.target;
+   if(target.tagName==='SCRIPT')showStartupError('A JavaScript file failed to load',target.src||target.outerHTML);
+   return;
+  }
+  showStartupError('Startup JavaScript error',[e.message||'Unknown JavaScript error',e.filename||'',e.lineno?'Line '+e.lineno:'',e.error&&e.error.stack||''].filter(Boolean).join('\n'));
+ });
+ window.addEventListener('unhandledrejection',function(e){
+  const reason=e.reason;
+  showStartupError('Startup operation failed',reason&&(reason.stack||reason.message)||String(reason||'Unknown promise rejection'));
+ });
+})();
+</script>
+<script>
 (() => {
  const canvas=document.getElementById('renderCanvas'), loading=document.getElementById('loading'), posLabel=document.getElementById('position');
- if(!window.BABYLON){loading.innerHTML='<div><b>Unable to load the 3D engine</b><span>Check your internet connection and refresh.</span></div>';return;}
+ if(!window.BABYLON){loading.innerHTML='<div style="max-width:620px;padding:20px;text-align:left"><b>Unable to load the local 3D engine</b><span style="display:block;margin-top:10px;white-space:pre-wrap">Expected: ./assets/babylon.js and ./assets/babylonjs.loaders.min.js. One of these files did not initialise. Refresh once; if this message remains, send a screenshot.</span></div>';return;}
  const B= BABYLON, engine=new B.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:true,adaptToDeviceRatio:true});
  const scene=new B.Scene(engine);scene.clearColor=new B.Color4(.57,.75,.84,1);scene.collisionsEnabled=true;
  const camera=new B.ArcRotateCamera('followCamera',-Math.PI/2,1.18,10,new B.Vector3(0,1.5,0),scene);
