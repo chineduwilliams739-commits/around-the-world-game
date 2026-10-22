@@ -134,7 +134,7 @@
  }
  const ground=B.MeshBuilder.CreateGround('cityGround',{width:180,height:180},scene);ground.material=grass;ground.checkCollisions=true;
  const solidObstacles=[];
- function box(name,x,y,z,w,h,d,material,coll=true){const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=material;m.checkCollisions=false;if(coll)solidObstacles.push({x,z,halfW:w/2+.55,halfD:d/2+.55});return m}
+ function box(name,x,y,z,w,h,d,material,coll=true){const m=B.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=material;m.checkCollisions=false;m.metadata={...(m.metadata||{}),cameraBlocker:!!coll};if(coll)solidObstacles.push({x,z,halfW:w/2+.55,halfD:d/2+.55});return m}
  // Main avenues and sidewalks
  box('Central Avenue',0,.015,0,17,.03,180,asphalt,false);box('Cross Street',0,.02,0,180,.04,13,asphalt,false);
  for(let z=-80;z<=80;z+=8){box('lane dash',0,.045,z, .18,.015,3.1,white,false)}
@@ -889,7 +889,7 @@
  // Stage 2 foundation: a free, browser-local resident identity and autosave.
  const SAVE_KEY='aroundTheWorld.newHorizon.save.v1';
  let profileData=null, playSeconds=0, saveClock=0, lastSavedLabel='Not yet';
- let walletBalance=0, careerJob=null, lastPayAtSeconds=0, totalWagesEarned=0;
+ let walletBalance=0, careerJob=null, lastPayAtSeconds=0, totalWagesEarned=0, dailyEssentials=0;
  const careerJobs={shop:{name:'Shop Assistant',salary:120,location:'Downtown Shop'},civic:{name:'Public Service Trainee',salary:150,location:'Civic Hall'}};
  const profileModal=document.getElementById('profileModal'), profileNameInput=document.getElementById('profileName');
  function makeResidentId(){return 'NH-'+(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,8):Math.random().toString(36).slice(2,10)).toUpperCase();}
@@ -897,7 +897,7 @@
  const loadedSave=readLocalSave();
  const appearanceDefaults={skin:'#a96f50',outfit:'#31536a',hair:'#25272b'};
  let appearance={...appearanceDefaults};
- if(loadedSave){profileData=loadedSave.profile;playSeconds=Math.max(0,Number(loadedSave.playSeconds)||0);walletBalance=Math.max(0,Number(loadedSave.walletBalance)||0);careerJob=careerJobs[loadedSave.careerJob]?loadedSave.careerJob:null;lastPayAtSeconds=Math.max(0,Number(loadedSave.lastPayAtSeconds)||playSeconds);totalWagesEarned=Math.max(0,Number(loadedSave.totalWagesEarned)||0);if(loadedSave.player&&Number.isFinite(loadedSave.player.x)&&Number.isFinite(loadedSave.player.z)){player.position.x=B.Scalar.Clamp(loadedSave.player.x,-84,84);player.position.z=B.Scalar.Clamp(loadedSave.player.z,-84,84);}if(loadedSave.appearance&&typeof loadedSave.appearance==='object')appearance={skin:loadedSave.appearance.skin||appearanceDefaults.skin,outfit:loadedSave.appearance.outfit||appearanceDefaults.outfit,hair:loadedSave.appearance.hair||appearanceDefaults.hair};if(profileData)profileData.visits=Math.max(1,Number(profileData.visits)||1)+1;}
+ if(loadedSave){profileData=loadedSave.profile;playSeconds=Math.max(0,Number(loadedSave.playSeconds)||0);walletBalance=Math.max(0,Number(loadedSave.walletBalance)||0);careerJob=careerJobs[loadedSave.careerJob]?loadedSave.careerJob:null;lastPayAtSeconds=Math.max(0,Number(loadedSave.lastPayAtSeconds)||playSeconds);totalWagesEarned=Math.max(0,Number(loadedSave.totalWagesEarned)||0);dailyEssentials=Math.max(0,Math.floor(Number(loadedSave.dailyEssentials)||0));if(loadedSave.player&&Number.isFinite(loadedSave.player.x)&&Number.isFinite(loadedSave.player.z)){player.position.x=B.Scalar.Clamp(loadedSave.player.x,-84,84);player.position.z=B.Scalar.Clamp(loadedSave.player.z,-84,84);}if(loadedSave.appearance&&typeof loadedSave.appearance==='object')appearance={skin:loadedSave.appearance.skin||appearanceDefaults.skin,outfit:loadedSave.appearance.outfit||appearanceDefaults.outfit,hair:loadedSave.appearance.hair||appearanceDefaults.hair};if(profileData)profileData.visits=Math.max(1,Number(profileData.visits)||1)+1;}
  function applyAppearance(next=appearance){
   const allowed={skin:['#a96f50','#80543e','#d0a17c','#9b684e'],outfit:['#31536a','#1f6f70','#704b8e','#8a4c3a','#47734f','#a88437'],hair:['#25272b','#392b25','#b8a071','#343d45']};
   appearance={skin:allowed.skin.includes(next.skin)?next.skin:appearanceDefaults.skin,outfit:allowed.outfit.includes(next.outfit)?next.outfit:appearanceDefaults.outfit,hair:allowed.hair.includes(next.hair)?next.hair:appearanceDefaults.hair};
@@ -912,7 +912,7 @@
  function renderProfile(){const p=profileData||{};const meetings=profileMeetingCount(),cityDays=Math.max(1,Math.floor(playSeconds/1440)+1),rank=meetings>=20?'City Favourite':meetings>=8?'Local Regular':playSeconds>=1800?'Known Resident':'Newcomer';document.getElementById('profileWallet').textContent='$'+Math.floor(walletBalance).toLocaleString();document.getElementById('profileJob').textContent=careerJob?careerJobs[careerJob].name:'Unemployed';document.getElementById('profileId').textContent=p.id||'Created on save';document.getElementById('profileMeetings').textContent=String(meetings);document.getElementById('profilePlaytime').textContent=formatPlaytime(playSeconds);document.getElementById('profileSaved').textContent=lastSavedLabel;document.getElementById('profileCityDays').textContent=String(cityDays);document.getElementById('profileRank').textContent=rank;document.getElementById('profileMilestone').textContent=meetings>=20?'Milestone unlocked: City Favourite — 20 resident conversations.':meetings>=8?'Milestone unlocked: Local Regular — 8 resident conversations.':playSeconds>=1800?'Milestone unlocked: Known Resident — 30 minutes in the city.':'Next milestone: '+(meetings<8?(8-meetings)+' more resident conversation'+(8-meetings===1?'':'s'):'spend 30 minutes exploring the city')+'.';document.getElementById('profileSaveNote').textContent=p.name?'Welcome back, '+p.name+'. Your progress is stored locally.':'Choose a resident name, then save to create your profile.';if(p.name&&!profileNameInput.value)profileNameInput.value=p.name;}
  function openProfile(){renderProfile();profileModal.classList.add('open');profileNameInput.focus();}
  function closeProfile(){if(!profileData){showToast('Create your resident profile to begin saving your life in the city.');return;}profileModal.classList.remove('open');}
- function buildSaveData(){const vehicle=activeVehicle;const actor=vehicle?vehicle.root:player;const meetings=profileMeetingCount();return {version:1,profile:profileData,appearance,walletBalance:Math.round(walletBalance),careerJob,lastPayAtSeconds:Math.round(lastPayAtSeconds),totalWagesEarned:Math.round(totalWagesEarned),progression:{cityDays:Math.max(1,Math.floor(playSeconds/1440)+1),totalMeetings:meetings,rank:meetings>=20?'City Favourite':meetings>=8?'Local Regular':playSeconds>=1800?'Known Resident':'Newcomer'},playSeconds:Math.round(playSeconds),player:{x:actor.position.x,z:actor.position.z,rotationY:actor.rotation.y},insideCivicHall,meetings:residents.map(npc=>({name:npc.name,count:npc.playerMeetings||0})),destination:selectedDestination?Object.keys(destinations).find(key=>destinations[key]===selectedDestination)||null:null};}
+ function buildSaveData(){const vehicle=activeVehicle;const actor=vehicle?vehicle.root:player;const meetings=profileMeetingCount();return {version:1,profile:profileData,appearance,walletBalance:Math.round(walletBalance),careerJob,lastPayAtSeconds:Math.round(lastPayAtSeconds),totalWagesEarned:Math.round(totalWagesEarned),dailyEssentials:Math.floor(dailyEssentials),progression:{cityDays:Math.max(1,Math.floor(playSeconds/1440)+1),totalMeetings:meetings,rank:meetings>=20?'City Favourite':meetings>=8?'Local Regular':playSeconds>=1800?'Known Resident':'Newcomer'},playSeconds:Math.round(playSeconds),player:{x:actor.position.x,z:actor.position.z,rotationY:actor.rotation.y},insideCivicHall,meetings:residents.map(npc=>({name:npc.name,count:npc.playerMeetings||0})),destination:selectedDestination?Object.keys(destinations).find(key=>destinations[key]===selectedDestination)||null:null};}
  function saveLocalProfile(){const name=profileNameInput.value.trim().replace(/\\s+/g,' ').slice(0,24);if(!name){document.getElementById('profileSaveNote').textContent='Please enter a resident name before saving.';profileNameInput.focus();return false;}if(!profileData)profileData={id:makeResidentId(),createdAt:new Date().toISOString(),visits:1};profileData.name=name;profileData.updatedAt=new Date().toISOString();try{localStorage.setItem(SAVE_KEY,JSON.stringify(buildSaveData()));lastSavedLabel=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});renderProfile();document.getElementById('profileSaveNote').textContent='Saved successfully in this browser.';return true;}catch(error){console.warn('Local save failed:',error);document.getElementById('profileSaveNote').textContent='This browser blocked local storage. Try allowing site data for this page.';return false;}}
  function exportProfileSave(){if(!profileData){document.getElementById('profileSaveNote').textContent='Save a resident profile first, then export it.';return;}if(!saveLocalProfile())return;const data=JSON.stringify(buildSaveData(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='around-the-world-'+profileData.id.toLowerCase()+'.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);document.getElementById('profileSaveNote').textContent='Backup downloaded. Keep the JSON file safe to move this save to another browser.';}
  document.getElementById('profileExport').addEventListener('click',exportProfileSave);
@@ -950,9 +950,11 @@
      if(deskDist<3.2&&deskDist<best){nearbyInteraction={name:'Public Services Desk',action:'desk',description:'Apply for a paid Public Service Trainee job and earn wages as you spend time in the city.'};best=deskDist;}
    }else if(insideShop){
      const exitDist=Math.hypot(p.x-29,p.z+3.8);
+     const managerDist=Math.hypot(p.x-29,p.z-.35);
      const counterDist=Math.hypot(p.x-29,p.z-4.1);
      if(exitDist<3.4){nearbyInteraction={name:'Exit Downtown Shop',action:'exitShop',description:'Return to Central Avenue.'};best=exitDist;}
-     if(counterDist<3.4&&counterDist<best){nearbyInteraction={name:'Shop Counter · Apply for work',action:'shopDesk',description:'Speak to the shop manager about a Shop Assistant position.'};best=counterDist;}
+     if(managerDist<2.45&&managerDist<best){nearbyInteraction={name:'Shop Manager · Apply for work',action:'shopDesk',description:'Speak to the shop manager about a Shop Assistant position.'};best=managerDist;}
+     if(counterDist<3.0&&counterDist<best){nearbyInteraction={name:'Checkout · Buy daily essentials ($25)',action:'shopCheckout',description:'Purchase a pack of daily essentials for $25.'};best=counterDist;}
    }else{
      for(const item of interactables){const d=Math.hypot(p.x-item.x,p.z-item.z);if(d<item.radius&&d<best){nearbyInteraction=item;best=d;}}
    }
@@ -1033,6 +1035,363 @@
      if(!profileData){showToast('Create your resident profile first, then speak to the shop manager.');openProfile();return;}
      if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
      else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else if(nearbyInteraction.action==='shopCheckout'){
+     const price=25;
+     if(walletBalance<price){showToast('Daily essentials cost $25. You need 
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');}
+     else{careerJob='civic';lastPayAtSeconds=playSeconds;showToast('Hired: Public Service Trainee! You will earn $150 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else if(nearbyInteraction.action==='shopJob'){
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
+     else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else showToast(nearbyInteraction.name+': '+nearbyInteraction.description);
+ }
+ document.getElementById('interactButton').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
+ // Keyboard and touch controls
+ const keys=Object.create(null);window.addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();});
+ window.addEventListener('keyup',e=>keys[e.code]=false);window.addEventListener('blur',()=>Object.keys(keys).forEach(k=>keys[k]=false));
+ const touchButtons=[...document.querySelectorAll('[data-key]')];
+ const activePointers=new Map();
+ touchButtons.forEach(btn=>{
+   const code=btn.dataset.key;
+   btn.addEventListener('pointerdown',e=>{
+     e.preventDefault();
+     try{btn.setPointerCapture(e.pointerId)}catch(_){}
+     activePointers.set(e.pointerId,{code,btn});
+     keys[code]=true;btn.classList.add('active');
+   });
+   const release=e=>{
+     const item=activePointers.get(e.pointerId);if(!item)return;
+     activePointers.delete(e.pointerId);
+     const stillHeld=[...activePointers.values()].some(v=>v.code===item.code);
+     if(!stillHeld)keys[item.code]=false;
+     if(![...activePointers.values()].some(v=>v.btn===item.btn))item.btn.classList.remove('active');
+   };
+   btn.addEventListener('pointerup',release);
+   btn.addEventListener('pointercancel',release);
+   btn.addEventListener('lostpointercapture',release);
+ });
+ window.addEventListener('blur',()=>{activePointers.clear();touchButtons.forEach(btn=>btn.classList.remove('active'));Object.keys(keys).forEach(k=>keys[k]=false)});
+ const rotateButton=document.getElementById('tryLandscape');
+ rotateButton.addEventListener('click',async()=>{
+   try{if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape');}
+   catch(_){showToast('Please rotate your phone sideways manually');}
+ });
+
+ let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
+ function showToast(s,duration=1800){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',duration)}
+ function setModelDiagnostics(title,message){
+  const panel=document.getElementById("modelDiagnostics");
+  const heading=document.getElementById("modelDiagnosticsTitle");
+  const detail=document.getElementById("modelDiagnosticsMessage");
+  if(!panel||!heading||!detail)return;
+  heading.textContent=title;
+  detail.textContent=message;
+  panel.style.display="block";
+ }
+ document.getElementById("retryCharacterModels").addEventListener("click",()=>{
+  const button=document.getElementById("retryCharacterModels");
+  button.disabled=true;
+  button.textContent="Retrying…";
+  setModelDiagnostics("Retrying character models","Trying to download and load the clothed character model again…");
+  Object.keys(characterContainerPromises).forEach(key=>delete characterContainerPromises[key]);
+  Promise.allSettled([upgradePlayerModel(),upgradeResidentModels(),upgradeTrafficDriverModels()]).then(results=>{
+   button.disabled=false;
+   button.textContent="Retry character models";
+   const failed=results.some(result=>result.status==="rejected");
+   if(!failed&&playerRigLoaded)document.getElementById("modelDiagnostics").style.display="none";
+  });
+ });
+ let last=performance.now(),walk=0,firstFrameRendered=false;
+ // The world opens quickly; nearby residents and vehicle occupants stream in afterward.
+ const openingStartedAt=performance.now();
+ function hasOpeningCharactersReady(){return playerRigLoaded;}
+ upgradePlayerModel();
+ upgradeResidentModels();
+ setTimeout(()=>upgradeTrafficDriverModels(),2200);
+ // The city renders immediately, but no primitive human placeholders are ever displayed.
+ engine.runRenderLoop(()=>{
+   const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
+   const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
+   const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+   if(activeVehicle){
+     const car=activeVehicle;
+     if(strafe)car.root.rotation.y+=strafe*dt*(.7+Math.min(Math.abs(vehicleSpeed),22)/22*.85)*(vehicleSpeed<-.5?-1:1);
+     const accelerating=forward>0,braking=forward<0;
+     const maxForward=(keys.ShiftLeft||keys.ShiftRight)?30:24;
+     if(accelerating)vehicleSpeed=Math.min(maxForward,vehicleSpeed+(vehicleSpeed<0?22:13)*dt);
+     else if(braking)vehicleSpeed=Math.max(-8,vehicleSpeed-(vehicleSpeed>0?24:12)*dt);
+     else vehicleSpeed*=Math.exp(-1.65*dt);
+     car.speedCurrent=vehicleSpeed;
+     if(Math.abs(vehicleSpeed)>.05){
+       const driveSpeed=vehicleSpeed;
+       const dx=Math.sin(car.root.rotation.y)*driveSpeed*dt,dz=Math.cos(car.root.rotation.y)*driveSpeed*dt;
+       const nx=B.Scalar.Clamp(car.root.position.x+dx,-82,82),nz=B.Scalar.Clamp(car.root.position.z+dz,-82,82);
+       const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW+1.05&&Math.abs(z-o.z)<o.halfD+1.7);
+       if(!blocked(nx,car.root.position.z))car.root.position.x=nx;
+       if(!blocked(car.root.position.x,nz))car.root.position.z=nz;
+       for(const wheel of car.wheels)wheel.rotation.x+=driveSpeed*dt*1.8;
+     }
+     // Keep the camera target on the moving car and place the camera behind
+     // the car's actual heading (the same heading used by forward movement).
+     camera.target.x=car.root.position.x;
+     camera.target.y=1.5;
+     camera.target.z=car.root.position.z;
+     const wantedAlpha=-car.root.rotation.y-Math.PI/2;
+     const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+     camera.alpha+=alphaDelta*Math.min(1,dt*5.5);
+     camera.beta+=(1.08-camera.beta)*Math.min(1,dt*2.5);
+     camera.radius+=(12-camera.radius)*Math.min(1,dt*2.2);
+   }else if(forward||strafe){
+     // Move in the camera's horizontal facing direction, not a fixed world direction.
+     const inputLength=Math.hypot(strafe,forward)||1;
+     const side=strafe/inputLength, ahead=forward/inputLength;
+     const dx=side*(-Math.sin(camera.alpha))+ahead*(-Math.cos(camera.alpha));
+     const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
+     const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
+     // Resolve each axis separately so collisions cannot freeze the player.
+     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,insideCivicHall?-35:(insideShop?21.5:-84),insideCivicHall?-21:(insideShop?36.5:84));
+     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,insideCivicHall?-9.6:(insideShop?-4.7:-84),insideCivicHall?5:(insideShop?8.3:84));
+     const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW&&Math.abs(z-o.z)<o.halfD);
+     if(!blocked(nextX,player.position.z))player.position.x=nextX;
+     if(!blocked(player.position.x,nextZ))player.position.z=nextZ;
+     if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}else if(insideShop){player.position.x=B.Scalar.Clamp(player.position.x,21.5,36.5);player.position.z=B.Scalar.Clamp(player.position.z,-4.7,8.3);}
+     player.rotation.y=Math.atan2(dx,dz);
+     const running=!!(keys.ShiftLeft||keys.ShiftRight);
+     walk+=dt*(running?15:10);
+     const stride=running?.54:.42,armSwing=running?.36:.28;
+     player.position.y=playerRigLoaded?0:Math.abs(Math.sin(walk))*(running?.065:.045);
+     if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,running?"run":"walk",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,true,running?"run":"walk",dt);}
+     playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
+     playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
+     playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
+     playerHands.forEach((hand,i)=>hand.position.y=-.79+Math.sin(walk+(i*Math.PI))*.035);
+   }else{if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,"idle",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
+   // Keep camera focused on the avatar without moving the world.
+   if(activeVehicle){camera.target.copyFrom(activeVehicle.root.position.add(new B.Vector3(0,1.15,0)));}
+   else{
+     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+     if(insideCivicHall||insideShop){
+       // Keep the whole resident and much of the room in frame, but never let the indoor camera cross a solid wall.
+       const wantedAlpha=-player.rotation.y-Math.PI/2;
+       const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+       camera.alpha+=alphaDelta*Math.min(1,dt*3.8);camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
+       const bounds=insideShop?{left:21.1,right:36.9,front:-5.25,back:9.25}:{left:-36.2,right:-19.8,front:-10,back:5.8};
+       const dx=Math.cos(camera.alpha),dz=Math.sin(camera.alpha),flat=Math.sin(camera.beta),px=player.position.x,pz=player.position.z,margin=.72;
+       let safeRadius=5.8;
+       if(dx>.001)safeRadius=Math.min(safeRadius,(bounds.right-px-margin)/Math.max(.01,dx*flat));
+       else if(dx<-.001)safeRadius=Math.min(safeRadius,(px-bounds.left-margin)/Math.max(.01,-dx*flat));
+       if(dz>.001)safeRadius=Math.min(safeRadius,(bounds.back-pz-margin)/Math.max(.01,dz*flat));
+       else if(dz<-.001)safeRadius=Math.min(safeRadius,(pz-bounds.front-margin)/Math.max(.01,-dz*flat));
+       safeRadius=B.Scalar.Clamp(safeRadius,1.45,5.8);
+       const cameraRayDirection=new B.Vector3(dx*flat,Math.cos(camera.beta),dz*flat).normalize();
+       const wallRay=new B.Ray(camera.target,cameraRayDirection,safeRadius);
+       const wallHit=scene.pickWithRay(wallRay,mesh=>!!(mesh.isPickable&&mesh.metadata&&mesh.metadata.cameraBlocker));
+       if(wallHit&&wallHit.hit&&wallHit.distance>0){
+         safeRadius=Math.max(1.35,Math.min(safeRadius,wallHit.distance-.42));
+         // Clamp immediately on collision; easing here would let the camera visibly cross the wall.
+         camera.radius=Math.min(camera.radius,safeRadius);
+       }
+       camera.radius+=(safeRadius-camera.radius)*Math.min(1,dt*4.2);
+     }
+   }
+   playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
+   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);updateEntranceDoors(dt);refreshInteraction();updateMap();
+   const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
+   posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
+   scene.render();
+   if(!firstFrameRendered&&hasOpeningCharactersReady()){firstFrameRendered=true;loading.style.display='none';}
+ });
+ window.addEventListener('pagehide',()=>{if(profileData)saveLocalProfile();});
+ window.addEventListener('resize',()=>engine.resize());
+ // Safety net for slow mobile devices or a stalled first frame.
+ setTimeout(()=>{if(loading.style.display!=='none'){
+   const ready=playerRigLoaded?residents.filter(npc=>npc.rigged&&Math.hypot(npc.root.position.x-player.position.x,npc.root.position.z-player.position.z)<38).length:0;
+   loading.innerHTML='<div><b>Preparing New Horizon City</b><span>Loading your character and nearby residents ('+(playerRigLoaded?'player ready':'player loading')+' · '+ready+' nearby residents ready). The city will open when the characters are ready.</span></div>';
+ }},12000);
+})();
+</script>
+</body>
+</html>+(price-Math.floor(walletBalance))+' more.');return;}
+     walletBalance-=price;dailyEssentials++;renderProfile();saveLocalProfile();
+     showToast('Purchase complete: daily essentials added to your bag. Bags owned: '+dailyEssentials+'. Balance: 
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');}
+     else{careerJob='civic';lastPayAtSeconds=playSeconds;showToast('Hired: Public Service Trainee! You will earn $150 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else if(nearbyInteraction.action==='shopJob'){
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
+     else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else showToast(nearbyInteraction.name+': '+nearbyInteraction.description);
+ }
+ document.getElementById('interactButton').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
+ // Keyboard and touch controls
+ const keys=Object.create(null);window.addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();});
+ window.addEventListener('keyup',e=>keys[e.code]=false);window.addEventListener('blur',()=>Object.keys(keys).forEach(k=>keys[k]=false));
+ const touchButtons=[...document.querySelectorAll('[data-key]')];
+ const activePointers=new Map();
+ touchButtons.forEach(btn=>{
+   const code=btn.dataset.key;
+   btn.addEventListener('pointerdown',e=>{
+     e.preventDefault();
+     try{btn.setPointerCapture(e.pointerId)}catch(_){}
+     activePointers.set(e.pointerId,{code,btn});
+     keys[code]=true;btn.classList.add('active');
+   });
+   const release=e=>{
+     const item=activePointers.get(e.pointerId);if(!item)return;
+     activePointers.delete(e.pointerId);
+     const stillHeld=[...activePointers.values()].some(v=>v.code===item.code);
+     if(!stillHeld)keys[item.code]=false;
+     if(![...activePointers.values()].some(v=>v.btn===item.btn))item.btn.classList.remove('active');
+   };
+   btn.addEventListener('pointerup',release);
+   btn.addEventListener('pointercancel',release);
+   btn.addEventListener('lostpointercapture',release);
+ });
+ window.addEventListener('blur',()=>{activePointers.clear();touchButtons.forEach(btn=>btn.classList.remove('active'));Object.keys(keys).forEach(k=>keys[k]=false)});
+ const rotateButton=document.getElementById('tryLandscape');
+ rotateButton.addEventListener('click',async()=>{
+   try{if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape');}
+   catch(_){showToast('Please rotate your phone sideways manually');}
+ });
+
+ let lookMode=false;document.getElementById('lookButton').addEventListener('click',()=>{lookMode=!lookMode;camera.attachControl(canvas,true);document.getElementById('lookButton').classList.toggle('active',lookMode);showToast(lookMode?'Drag to look around':'Look mode ready')});
+ function showToast(s,duration=1800){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.display='none',duration)}
+ function setModelDiagnostics(title,message){
+  const panel=document.getElementById("modelDiagnostics");
+  const heading=document.getElementById("modelDiagnosticsTitle");
+  const detail=document.getElementById("modelDiagnosticsMessage");
+  if(!panel||!heading||!detail)return;
+  heading.textContent=title;
+  detail.textContent=message;
+  panel.style.display="block";
+ }
+ document.getElementById("retryCharacterModels").addEventListener("click",()=>{
+  const button=document.getElementById("retryCharacterModels");
+  button.disabled=true;
+  button.textContent="Retrying…";
+  setModelDiagnostics("Retrying character models","Trying to download and load the clothed character model again…");
+  Object.keys(characterContainerPromises).forEach(key=>delete characterContainerPromises[key]);
+  Promise.allSettled([upgradePlayerModel(),upgradeResidentModels(),upgradeTrafficDriverModels()]).then(results=>{
+   button.disabled=false;
+   button.textContent="Retry character models";
+   const failed=results.some(result=>result.status==="rejected");
+   if(!failed&&playerRigLoaded)document.getElementById("modelDiagnostics").style.display="none";
+  });
+ });
+ let last=performance.now(),walk=0,firstFrameRendered=false;
+ // The world opens quickly; nearby residents and vehicle occupants stream in afterward.
+ const openingStartedAt=performance.now();
+ function hasOpeningCharactersReady(){return playerRigLoaded;}
+ upgradePlayerModel();
+ upgradeResidentModels();
+ setTimeout(()=>upgradeTrafficDriverModels(),2200);
+ // The city renders immediately, but no primitive human placeholders are ever displayed.
+ engine.runRenderLoop(()=>{
+   const now=performance.now(),dt=Math.min((now-last)/1000,.05);last=now;
+   const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
+   const strafe=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+   if(activeVehicle){
+     const car=activeVehicle;
+     if(strafe)car.root.rotation.y+=strafe*dt*(.7+Math.min(Math.abs(vehicleSpeed),22)/22*.85)*(vehicleSpeed<-.5?-1:1);
+     const accelerating=forward>0,braking=forward<0;
+     const maxForward=(keys.ShiftLeft||keys.ShiftRight)?30:24;
+     if(accelerating)vehicleSpeed=Math.min(maxForward,vehicleSpeed+(vehicleSpeed<0?22:13)*dt);
+     else if(braking)vehicleSpeed=Math.max(-8,vehicleSpeed-(vehicleSpeed>0?24:12)*dt);
+     else vehicleSpeed*=Math.exp(-1.65*dt);
+     car.speedCurrent=vehicleSpeed;
+     if(Math.abs(vehicleSpeed)>.05){
+       const driveSpeed=vehicleSpeed;
+       const dx=Math.sin(car.root.rotation.y)*driveSpeed*dt,dz=Math.cos(car.root.rotation.y)*driveSpeed*dt;
+       const nx=B.Scalar.Clamp(car.root.position.x+dx,-82,82),nz=B.Scalar.Clamp(car.root.position.z+dz,-82,82);
+       const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW+1.05&&Math.abs(z-o.z)<o.halfD+1.7);
+       if(!blocked(nx,car.root.position.z))car.root.position.x=nx;
+       if(!blocked(car.root.position.x,nz))car.root.position.z=nz;
+       for(const wheel of car.wheels)wheel.rotation.x+=driveSpeed*dt*1.8;
+     }
+     // Keep the camera target on the moving car and place the camera behind
+     // the car's actual heading (the same heading used by forward movement).
+     camera.target.x=car.root.position.x;
+     camera.target.y=1.5;
+     camera.target.z=car.root.position.z;
+     const wantedAlpha=-car.root.rotation.y-Math.PI/2;
+     const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+     camera.alpha+=alphaDelta*Math.min(1,dt*5.5);
+     camera.beta+=(1.08-camera.beta)*Math.min(1,dt*2.5);
+     camera.radius+=(12-camera.radius)*Math.min(1,dt*2.2);
+   }else if(forward||strafe){
+     // Move in the camera's horizontal facing direction, not a fixed world direction.
+     const inputLength=Math.hypot(strafe,forward)||1;
+     const side=strafe/inputLength, ahead=forward/inputLength;
+     const dx=side*(-Math.sin(camera.alpha))+ahead*(-Math.cos(camera.alpha));
+     const dz=side*Math.cos(camera.alpha)+ahead*(-Math.sin(camera.alpha));
+     const speed=(keys.ShiftLeft||keys.ShiftRight?8:4.6)*dt;
+     // Resolve each axis separately so collisions cannot freeze the player.
+     const nextX=B.Scalar.Clamp(player.position.x+dx*speed,insideCivicHall?-35:(insideShop?21.5:-84),insideCivicHall?-21:(insideShop?36.5:84));
+     const nextZ=B.Scalar.Clamp(player.position.z+dz*speed,insideCivicHall?-9.6:(insideShop?-4.7:-84),insideCivicHall?5:(insideShop?8.3:84));
+     const blocked=(x,z)=>solidObstacles.some(o=>Math.abs(x-o.x)<o.halfW&&Math.abs(z-o.z)<o.halfD);
+     if(!blocked(nextX,player.position.z))player.position.x=nextX;
+     if(!blocked(player.position.x,nextZ))player.position.z=nextZ;
+     if(insideCivicHall){player.position.x=B.Scalar.Clamp(player.position.x,-35,-21);player.position.z=B.Scalar.Clamp(player.position.z,-9.4,5);}else if(insideShop){player.position.x=B.Scalar.Clamp(player.position.x,21.5,36.5);player.position.z=B.Scalar.Clamp(player.position.z,-4.7,8.3);}
+     player.rotation.y=Math.atan2(dx,dz);
+     const running=!!(keys.ShiftLeft||keys.ShiftRight);
+     walk+=dt*(running?15:10);
+     const stride=running?.54:.42,armSwing=running?.36:.28;
+     player.position.y=playerRigLoaded?0:Math.abs(Math.sin(walk))*(running?.065:.045);
+     if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,running?"run":"walk",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,true,running?"run":"walk",dt);}
+     playerLegs.forEach((leg,i)=>leg.rotation.x=Math.sin(walk)*(i===0?1:-1)*stride);
+     playerArms.forEach((arm,i)=>{arm.rotation.x=Math.sin(walk)*(i===0?-1:1)*armSwing;arm.rotation.z=(i===0?-.15:.15)+Math.sin(walk+(i*Math.PI))*.035;});
+     playerFeet.forEach((foot,i)=>foot.rotation.x=playerLegs[i].rotation.x*.3);
+     playerHands.forEach((hand,i)=>hand.position.y=-.79+Math.sin(walk+(i*Math.PI))*.035);
+   }else{if(playerRigLoaded){playerRigCurrentAnimation=setCharacterAnimation(playerRigAnimatables,"idle",playerRigCurrentAnimation);animateRigMotion(playerRigMotion,now,false,"idle",dt);}player.position.y=0;playerLegs.forEach(leg=>leg.rotation.x*=.75);playerArms.forEach((arm,i)=>{arm.rotation.x*=.75;arm.rotation.z+=(i===0?-.15:.15-arm.rotation.z)*.1;});playerFeet.forEach(foot=>foot.rotation.x*=.75)}
+   // Keep camera focused on the avatar without moving the world.
+   if(activeVehicle){camera.target.copyFrom(activeVehicle.root.position.add(new B.Vector3(0,1.15,0)));}
+   else{
+     camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
+     if(insideCivicHall||insideShop){
+       // Keep the whole resident and much of the room in frame, but never let the indoor camera cross a solid wall.
+       const wantedAlpha=-player.rotation.y-Math.PI/2;
+       const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
+       camera.alpha+=alphaDelta*Math.min(1,dt*3.8);camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
+       const bounds=insideShop?{left:21.1,right:36.9,front:-5.25,back:9.25}:{left:-36.2,right:-19.8,front:-10,back:5.8};
+       const dx=Math.cos(camera.alpha),dz=Math.sin(camera.alpha),flat=Math.sin(camera.beta),px=player.position.x,pz=player.position.z,margin=.72;
+       let safeRadius=5.8;
+       if(dx>.001)safeRadius=Math.min(safeRadius,(bounds.right-px-margin)/Math.max(.01,dx*flat));
+       else if(dx<-.001)safeRadius=Math.min(safeRadius,(px-bounds.left-margin)/Math.max(.01,-dx*flat));
+       if(dz>.001)safeRadius=Math.min(safeRadius,(bounds.back-pz-margin)/Math.max(.01,dz*flat));
+       else if(dz<-.001)safeRadius=Math.min(safeRadius,(pz-bounds.front-margin)/Math.max(.01,-dz*flat));
+       safeRadius=B.Scalar.Clamp(safeRadius,1.45,5.8);
+       const cameraRayDirection=new B.Vector3(dx*flat,Math.cos(camera.beta),dz*flat).normalize();
+       const wallRay=new B.Ray(camera.target,cameraRayDirection,safeRadius);
+       const wallHit=scene.pickWithRay(wallRay,mesh=>!!(mesh.isPickable&&mesh.metadata&&mesh.metadata.cameraBlocker));
+       if(wallHit&&wallHit.hit&&wallHit.distance>0){
+         safeRadius=Math.max(1.35,Math.min(safeRadius,wallHit.distance-.42));
+         // Clamp immediately on collision; easing here would let the camera visibly cross the wall.
+         camera.radius=Math.min(camera.radius,safeRadius);
+       }
+       camera.radius+=(safeRadius-camera.radius)*Math.min(1,dt*4.2);
+     }
+   }
+   playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
+   updateEnvironment(now,dt);updateResidents(dt,now);updateTraffic(dt);updateCarDrivers(dt);updateEntranceDoors(dt);refreshInteraction();updateMap();
+   const x=activeVehicle?activeVehicle.root.position.x:player.position.x,z=activeVehicle?activeVehicle.root.position.z:player.position.z;
+   posLabel.textContent=(Math.abs(x)<12&&Math.abs(z)<12)?'District: Central Avenue':(x< -30&&z>20?'District: Green Park':(Math.abs(x)>13?'District: Downtown':'District: New Horizon'));
+   scene.render();
+   if(!firstFrameRendered&&hasOpeningCharactersReady()){firstFrameRendered=true;loading.style.display='none';}
+ });
+ window.addEventListener('pagehide',()=>{if(profileData)saveLocalProfile();});
+ window.addEventListener('resize',()=>engine.resize());
+ // Safety net for slow mobile devices or a stalled first frame.
+ setTimeout(()=>{if(loading.style.display!=='none'){
+   const ready=playerRigLoaded?residents.filter(npc=>npc.rigged&&Math.hypot(npc.root.position.x-player.position.x,npc.root.position.z-player.position.z)<38).length:0;
+   loading.innerHTML='<div><b>Preparing New Horizon City</b><span>Loading your character and nearby residents ('+(playerRigLoaded?'player ready':'player loading')+' · '+ready+' nearby residents ready). The city will open when the characters are ready.</span></div>';
+ }},12000);
+})();
+</script>
+</body>
+</html>+Math.floor(walletBalance)+'.');
    }else if(nearbyInteraction.action==='desk'){
      if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
      if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');}
@@ -1169,18 +1528,27 @@
    else{
      camera.target.copyFrom(player.position.add(new B.Vector3(0,1.2,0)));
      if(insideCivicHall||insideShop){
-       // Frame the resident and room together; shorten the orbit only when a wall is close.
+       // Keep the whole resident and much of the room in frame, but never let the indoor camera cross a solid wall.
        const wantedAlpha=-player.rotation.y-Math.PI/2;
        const alphaDelta=((wantedAlpha-camera.alpha+Math.PI*3)%(Math.PI*2))-Math.PI;
        camera.alpha+=alphaDelta*Math.min(1,dt*3.8);camera.beta+=(1.22-camera.beta)*Math.min(1,dt*2.6);
        const bounds=insideShop?{left:21.1,right:36.9,front:-5.25,back:9.25}:{left:-36.2,right:-19.8,front:-10,back:5.8};
-       const dx=Math.cos(camera.alpha),dz=Math.sin(camera.alpha),flat=Math.sin(camera.beta),px=player.position.x,pz=player.position.z,margin=.65;
+       const dx=Math.cos(camera.alpha),dz=Math.sin(camera.alpha),flat=Math.sin(camera.beta),px=player.position.x,pz=player.position.z,margin=.72;
        let safeRadius=5.8;
        if(dx>.001)safeRadius=Math.min(safeRadius,(bounds.right-px-margin)/Math.max(.01,dx*flat));
        else if(dx<-.001)safeRadius=Math.min(safeRadius,(px-bounds.left-margin)/Math.max(.01,-dx*flat));
        if(dz>.001)safeRadius=Math.min(safeRadius,(bounds.back-pz-margin)/Math.max(.01,dz*flat));
        else if(dz<-.001)safeRadius=Math.min(safeRadius,(pz-bounds.front-margin)/Math.max(.01,-dz*flat));
-       safeRadius=B.Scalar.Clamp(safeRadius,1.4,5.8);camera.radius+=(safeRadius-camera.radius)*Math.min(1,dt*3.2);
+       safeRadius=B.Scalar.Clamp(safeRadius,1.45,5.8);
+       const cameraRayDirection=new B.Vector3(dx*flat,Math.cos(camera.beta),dz*flat).normalize();
+       const wallRay=new B.Ray(camera.target,cameraRayDirection,safeRadius);
+       const wallHit=scene.pickWithRay(wallRay,mesh=>!!(mesh.isPickable&&mesh.metadata&&mesh.metadata.cameraBlocker));
+       if(wallHit&&wallHit.hit&&wallHit.distance>0){
+         safeRadius=Math.max(1.35,Math.min(safeRadius,wallHit.distance-.42));
+         // Clamp immediately on collision; easing here would let the camera visibly cross the wall.
+         camera.radius=Math.min(camera.radius,safeRadius);
+       }
+       camera.radius+=(safeRadius-camera.radius)*Math.min(1,dt*4.2);
      }
    }
    playSeconds+=dt;if(careerJob&&playSeconds-lastPayAtSeconds>=300){const wage=careerJobs[careerJob].salary;const periods=Math.floor((playSeconds-lastPayAtSeconds)/300);walletBalance+=wage*periods;totalWagesEarned+=wage*periods;lastPayAtSeconds+=periods*300;showToast('Payday: +$'+(wage*periods).toLocaleString()+' from '+careerJobs[careerJob].name+'.');renderProfile();}saveClock+=dt;if(saveClock>=5&&profileData){saveClock=0;saveLocalProfile();}
