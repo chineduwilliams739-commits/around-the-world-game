@@ -580,8 +580,9 @@
  let playerRigLoaded=false;
  async function upgradePlayerModel(){
   const proceduralMeshes=player.getChildMeshes(false);
-  // Keep the opening screen up until the detailed, clothed player rig is ready.
-  proceduralMeshes.forEach(mesh=>mesh.setEnabled(false));
+  // Keep the built-in fully clothed fallback visible while the detailed rig downloads.
+  // Hide it only after the imported model has passed validation and is visible.
+  proceduralMeshes.forEach(mesh=>mesh.setEnabled(true));
   let instance=null,rigRoot=null;
   try{
    const container=await getCharacterContainer("maya");
@@ -688,8 +689,9 @@
   let phone=null;if(index%3===1){phone=B.MeshBuilder.CreateBox('residentPhone'+index,{width:.105,height:.18,depth:.025},scene);phone.parent=arms[1];phone.position.set(.015,-.62,.13);phone.material=phoneMat;phone.isVisible=false;}
   let bag=null;if(index%4===2){bag=B.MeshBuilder.CreateBox('residentBag'+index,{width:.32,height:.38,depth:.16},scene);bag.parent=root;bag.position.set(-.34,1.02,-.17);bag.material=bagMat;}
   root.position.set(route[0][0],0,route[0][1]);
-  // Do not show low-detail fallback residents during loading or after a model error.
-  root.setEnabled(false);
+  // Keep clothed fallback residents visible while external character models load.
+  // A successful rig replacement disables this root; a failed download leaves it playable.
+  root.setEnabled(true);
   residents.push({root,points:route.map(p=>new B.Vector3(p[0],0,p[1])),index,name:residentNames[index],routine:['commuter','commuter','social','social','park','park','errands','errands'][index],target:1,wait:(index%4)*1.2,phase:index*.8,legs,arms,feet,hands,phone,bag,action:'walk',lookPhase:0,playerMeetings:0});
  }
  residentRoutes.forEach((route,i)=>createResident(i,route));
