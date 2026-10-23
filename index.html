@@ -1063,7 +1063,25 @@
      if(!profileData){showToast('Create your resident profile first, then speak to the shop manager.');openProfile();return;}
      if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
      else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
-   }else if(nearbyInteraction.action==='shopCheckout'){,     const price=25;,     if(walletBalance<price){,       showToast('Daily essentials cost $25. You need $'+(price-walletBalance)+' more.');,     }else{,       walletBalance-=price;,       dailyEssentials+=1;,       showToast('Purchased daily essentials for $25. Packs owned: '+dailyEssentials+'.');,       renderProfile();,       saveLocalProfile();,     },   }else if(nearbyInteraction.action==='desk'){,     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;},     if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');},     else{careerJob='civic';lastPayAtSeconds=playSeconds;showToast('Hired: Public Service Trainee! You will earn $150 every 5 minutes of active city time.');renderProfile();saveLocalProfile();},   }else if(nearbyInteraction.action==='shopJob'){,     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;},     if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');},     else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else if(nearbyInteraction.action==='shopCheckout'){
+     const price=25;
+     if(walletBalance<price){
+       showToast('Daily essentials cost $25. You need $'+(price-walletBalance)+' more.');
+     }else{
+       walletBalance-=price;
+       dailyEssentials+=1;
+       showToast('Purchased daily essentials for $25. Packs owned: '+dailyEssentials+'.');
+       renderProfile();
+       saveLocalProfile();
+     }
+   }else if(nearbyInteraction.action==='desk'){
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='civic'){showToast('You are employed as a Public Service Trainee. Earn $150 every 5 minutes of active city time.');}
+     else{careerJob='civic';lastPayAtSeconds=playSeconds;showToast('Hired: Public Service Trainee! You will earn $150 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
+   }else if(nearbyInteraction.action==='shopJob'){
+     if(!profileData){showToast('Create your resident profile first, then return here to apply for work.');openProfile();return;}
+     if(careerJob==='shop'){showToast('You are employed as a Shop Assistant. Earn $120 every 5 minutes of active city time.');}
+     else{careerJob='shop';lastPayAtSeconds=playSeconds;showToast('Hired: Shop Assistant! You will earn $120 every 5 minutes of active city time.');renderProfile();saveLocalProfile();}
    }else showToast(nearbyInteraction.name+': '+nearbyInteraction.description);
  }
  document.getElementById('interactButton').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
