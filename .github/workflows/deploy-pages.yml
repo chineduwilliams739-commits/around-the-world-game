@@ -23,6 +23,24 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+      - name: Validate inline JavaScript syntax before downloading assets
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess, sys
+          html = pathlib.Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script\\b([^>]*)>([\\s\\S]*?)</script\\s*>", html, re.IGNORECASE)
+          inline = [body for attrs, body in scripts if not re.search(r"\\bsrc\\s*=", attrs, re.IGNORECASE) and body.strip()]
+          if not inline:
+              raise SystemExit("No inline JavaScript found to validate")
+          for i, body in enumerate(inline, 1):
+              path = pathlib.Path(f"/tmp/around-the-world-inline-{i}.js")
+              path.write_text(body, encoding="utf-8")
+              print(f"Checking inline script {i}/{len(inline)} ({len(body)} characters)")
+              result = subprocess.run(["node", "--check", str(path)], text=True)
+              if result.returncode:
+                  raise SystemExit(f"JavaScript syntax check failed for inline script {i}")
+          print(f"JavaScript syntax check passed for all {len(inline)} inline scripts")
+          PY
       - name: Download and bundle the animated character and Babylon.js locally
         run: |
           mkdir -p assets
